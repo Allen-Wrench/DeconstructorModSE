@@ -1,22 +1,24 @@
 ﻿using Sandbox.Definitions;
 using Sandbox.Game.Entities;
+using Sandbox.Game.Gui;
 using Sandbox.ModAPI;
 using SpaceEngineers.Game.ModAPI;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using VRage;
 using VRage.Game;
 using VRage.Game.Entity;
 using VRage.Game.ModAPI;
 using VRage.ObjectBuilders;
+using VRageMath;
 
 namespace DeconstructorModSE
 {
 	public static class Utils
 	{
-		public readonly static List<IMyCubeGrid> Grids = new List<IMyCubeGrid>();
 		private static Dictionary<MyDefinitionId, MyPhysicalInventoryItem> TempItems = new Dictionary<MyDefinitionId, MyPhysicalInventoryItem>();
-		//public readonly static Dictionary<long, IMyCubeGrid> Grids = new Dictionary<long, IMyCubeGrid>();
 
 		public static void DeconstructGrid(IMyInventory inventory, ref IMyCubeGrid SelectedGrid, ref List<MyObjectBuilder_InventoryItem> Items)
 		{
@@ -24,53 +26,44 @@ namespace DeconstructorModSE
 			var Blocks = new List<IMySlimBlock>();
 			SelectedGrid.GetBlocks(Blocks);
 
-			// get subgrids
-			var gridGroup = new List<IMyCubeGrid>();
-			SelectedGrid.GetGridGroup(GridLinkTypeEnum.Mechanical).GetGrids(gridGroup);
-			foreach (var grid in gridGroup)
-			{
-				if (grid == SelectedGrid)
-					continue;
-
-				grid.GetBlocks(Blocks);
-			}
-			MyObjectBuilder_PhysicalObject physicalObjBuilder;
+			Dictionary<string, int> missing = new Dictionary<string, int>();
 			MyPhysicalInventoryItem phys;
-			MyObjectBuilder_CubeBlock Obj;
-			var InvItems = new List<VRage.Game.ModAPI.Ingame.MyInventoryItem>();
-
 			MyDefinitionId Id;
 
 			foreach (var block in Blocks)
 			{
-				block.FullyDismount(inventory);
-				Obj = block.GetObjectBuilder();
-				if (Obj.ConstructionStockpile != null)
-				{
-					for (var i = 0; i < Obj.ConstructionStockpile.Items.Count(); i++)
-					{
-						phys = new MyPhysicalInventoryItem(Obj.ConstructionStockpile.Items[i].Amount, Obj.ConstructionStockpile.Items[i].PhysicalContent);
-						Id = phys.Content.GetObjectId();
-						if (!TempItems.ContainsKey(Id))
-							TempItems.Add(Id, phys);
-						else
-							TempItems[Id] = new MyPhysicalInventoryItem(phys.Amount + TempItems[Id].Amount, phys.Content);
-					}
-				}
-				if (block.FatBlock != null && block.FatBlock.HasInventory)
-				{
-					InvItems.Clear();
-					block.FatBlock.GetInventory().GetItems(InvItems);
+				if (!block.IsFullIntegrity)
+					block.GetMissingComponents(missing);
 
-					for (var i = 0; i < InvItems.Count; i++)
+				foreach (var comp in (block.BlockDefinition as MyCubeBlockDefinition).Components)
+				{
+					int count = comp.Count;
+					if (missing.ContainsKey(comp.Definition.Id.SubtypeName))
+						count -= missing[comp.Definition.Id.SubtypeName];
+					if (count < 0)
+						count = 0;
+					MyObjectBuilder_PhysicalObject obj = MyObjectBuilderSerializer.CreateNewObject(comp.DeconstructItem.Id) as MyObjectBuilder_PhysicalObject;
+					phys = new MyPhysicalInventoryItem(count, obj);
+					Id = phys.Content.GetObjectId();
+					if (!TempItems.ContainsKey(Id))
+						TempItems.Add(Id, phys);
+					else
+						TempItems[Id] = new MyPhysicalInventoryItem(phys.Amount + TempItems[Id].Amount, phys.Content);
+				}
+				missing.Clear();
+			}
+
+			foreach (var inv in (SelectedGrid as MyCubeGrid).Inventories)
+			{
+				for (int i = 0; i < inv.InventoryCount; i++)
+				{
+					foreach (var item in inv.GetInventory(i).GetItems())
 					{
-						physicalObjBuilder = (MyObjectBuilder_PhysicalObject)MyObjectBuilderSerializer.CreateNewObject((MyDefinitionId)InvItems[i].Type);
-						phys = new MyPhysicalInventoryItem(InvItems[i].Amount, physicalObjBuilder);
-						Id = phys.Content.GetObjectId();
+						Id = item.Content.GetObjectId();
 						if (!TempItems.ContainsKey(Id))
-							TempItems.Add(Id, phys);
+							TempItems.Add(Id, item);
 						else
-							TempItems[Id] = new MyPhysicalInventoryItem(phys.Amount + TempItems[Id].Amount, phys.Content);
+							TempItems[Id] = new MyPhysicalInventoryItem(item.Amount + TempItems[Id].Amount, item.Content);
 					}
 				}
 			}
@@ -82,12 +75,12 @@ namespace DeconstructorModSE
 			TempItems.Clear();
 		}
 
-		public static void GetGrindTime(DeconstructorMod MyBlock, ref IMyCubeGrid SelectedGrid, ref float totalTime, bool calcEff = true)
+		public static TimeSpan GetGrindTime(DeconstructorMod MyBlock, ref IMyCubeGrid SelectedGrid, bool calcEff = true)
 		{
 			if (MyBlock == null || SelectedGrid == null)
-				return;
+				return TimeSpan.Zero;
 
-			totalTime = 0;
+			float totalTime = 0;
 			var Blocks = new List<IMySlimBlock>();
 			SelectedGrid.GetBlocks(Blocks);
 			var gridGroupGrids = new List<IMyCubeGrid>();
@@ -106,7 +99,7 @@ namespace DeconstructorModSE
 				}
 			}
 			if (Blocks.Count == 0)
-				return;
+				return TimeSpan.Zero;
 
 			float grindRatio = 0;
 			float integrity = 0;
@@ -133,6 +126,8 @@ namespace DeconstructorModSE
 				totalTime *= (100.0f - MyBlock.Settings.Efficiency) / 100.0f;
 			else
 				totalTime *= 100.0f / 100.0f;
+
+			return TimeSpan.FromSeconds(totalTime);
 		}
 
 		public static void SpawnItems(IMyInventory MyInventory, ref List<MyObjectBuilder_InventoryItem> Items)

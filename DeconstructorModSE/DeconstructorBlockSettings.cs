@@ -1,4 +1,5 @@
 ﻿using ProtoBuf;
+using System;
 using System.Collections.Generic;
 using VRage.Game;
 
@@ -14,9 +15,15 @@ namespace DeconstructorModSE
 		public bool IsGrinding;
 
 		[ProtoMember(3)]
-		public float Time;
+		public TimeSpan Time;
 
 		[ProtoMember(4)]
+		public DateTime? TimeStarted;
+
+		[ProtoMember(5)]
 		public List<MyObjectBuilder_InventoryItem> Items = new List<MyObjectBuilder_InventoryItem>();
+
+		[ProtoMember(6)]
+		public List<string> HiddenGrids = new List<string>();
 	}
 }

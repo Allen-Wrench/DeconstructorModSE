@@ -1,14 +1,17 @@
-﻿using Sandbox.Common.ObjectBuilders;
+﻿using EmptyKeys.UserInterface.Generated.DataTemplatesStoreBlock_Bindings;
+using Sandbox.Common.ObjectBuilders;
 using Sandbox.Game.Entities;
 using Sandbox.Game.EntityComponents;
 using Sandbox.ModAPI;
 using SpaceEngineers.Game.ModAPI;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using VRage.Game;
 using VRage.Game.Components;
 using VRage.Game.ModAPI;
+using VRage.Game.ObjectBuilders.ComponentSystem;
 using VRage.ModAPI;
 using VRage.ObjectBuilders;
 using VRage.Utils;
@@ -21,11 +24,12 @@ namespace DeconstructorModSE
 	public class DeconstructorMod : MyGameLogicComponent
 	{
 		//Settings
-		public const float Efficiency_Min = 0;
+		public ModSettings ModSettings => DeconstructorSession.Instance.Settings;
+		public float Range => ModSettings.Range;
+		public float Power => ModSettings.Power;
+		public float Efficiency_Min => ModSettings.Efficiency_Min;
+		public float Efficiency_Max => ModSettings.Efficiency_Max;
 
-		public const float Efficiency_Max = 99;
-		public const float Range = 500;
-		public const float Power = 0.002f; //in MW
 		public const int SETTINGS_CHANGED_COUNTDOWN = 10; // div by 10 because it runs in update10
 		public readonly Guid SETTINGS_GUID = new Guid("1EAB58EE-7304-45D2-B3C8-9BA2DC31EF90");
 		public readonly DeconstructorBlockSettings Settings = new DeconstructorBlockSettings();
@@ -34,6 +38,37 @@ namespace DeconstructorModSE
 		private IMyInventory MyInventory;
 		public List<IMyCubeGrid> Grids;
 		private IMyCubeGrid _SGrid;
+
+		private IEnumerator<int> Dissasemble;
+		private int count;
+		private int iteration;
+
+		public void DeconstructFX(MyCubeGrid grid)
+		{
+			if (Dissasemble == null && grid != null && Settings.TimeStarted != null)
+			{
+				count = (int)((Settings.Time - (DateTime.UtcNow - Settings.TimeStarted.Value)).TotalSeconds * 60) / grid.CubeBlocks.Count;
+				if (count < 1) 
+					count = 1;
+				iteration = 0;
+
+				Dissasemble = Decon(grid);
+				NeedsUpdate |= MyEntityUpdateEnum.EACH_FRAME;
+			}
+		}
+
+		private IEnumerator<int> Decon(IMyCubeGrid grid)
+		{
+			List<IMySlimBlock> blocks = new List<IMySlimBlock>();
+			grid.GetBlocks(blocks);
+			for (int i = blocks.Count - 1; i >= 0; i--)
+			{
+				if (blocks[i] == null) continue;
+				blocks[i].PlayConstructionSound(MyIntegrityChangeEnum.DeconstructionProcess, true);
+				blocks[i].Dithering = 1f;
+				yield return i;
+			}
+		}
 
 		public IMyCubeGrid SelectedGrid
 		{
@@ -91,11 +126,13 @@ namespace DeconstructorModSE
 
 		public float GetPowerRequired()
 		{
-			if (Settings.IsGrinding) return sink.CurrentInputByType(MyResourceDistributorComponent.ElectricityId);
+			if (!Settings.IsGrinding) return sink.CurrentInputByType(MyResourceDistributorComponent.ElectricityId);
 			if (_SGrid == null) return Power;
 
 			float time = 0;
-			Utils.GetGrindTime(this, ref _SGrid, ref time, false);
+			TimeSpan dt = Utils.GetGrindTime(this, ref _SGrid, false);
+			if (dt == null) return Power;
+			time = (float)dt.TotalSeconds;
 			var removedTime = time / (1 - (Efficiency / 100));
 			return Power + (removedTime / 1000 / 60 / 2);
 		}
@@ -122,46 +159,33 @@ namespace DeconstructorModSE
 			SetPower(true);
 			Settings.IsGrinding = true;
 			Utils.DeconstructGrid(MyInventory, ref SelectedGrid, ref Settings.Items);
-			var gridGroup = new List<IMyCubeGrid>();
-			SelectedGrid.GetGridGroup(GridLinkTypeEnum.Mechanical).GetGrids(gridGroup);
-			foreach (var grid in gridGroup)
-			{
-				if (grid == SelectedGrid)
-					continue;
 
-				grid.Close();
-			}
-			SelectedGrid.Close();
+			MyCubeGrid grid = SelectedGrid as MyCubeGrid;
+			grid.DismountAllCockpits();
+			grid.ChangePowerProducerState(VRage.MyMultipleEnabledEnum.AllDisabled, -1);
+			grid.Physics.Clear();
+			grid.Physics.Flags = RigidBodyFlag.RBF_DISABLE_COLLISION_RESPONSE;
+			grid.Immune = true;
+			grid.Editable = false;
 		}
 
 		public void GetGrindTime(IMyCubeGrid SelectedGrid, bool calcEff = true)
 		{
-			Utils.GetGrindTime(this, ref SelectedGrid, ref Settings.Time, calcEff);
+			Settings.Time = Utils.GetGrindTime(this, ref SelectedGrid, calcEff);
 		}
 
 		public override void Init(MyObjectBuilder_EntityBase objectBuilder)
 		{
-			NeedsUpdate = MyEntityUpdateEnum.BEFORE_NEXT_FRAME; // allow UpdateOnceBeforeFrame() to execute, remove if not needed
+			NeedsUpdate = MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
 		}
 
 		public override void UpdateOnceBeforeFrame()
 		{
-			// first update of the block, remove if not needed
 			if (!DeconstructorTerminalInit._TerminalInit)
 			{
 				DeconstructorTerminalInit._TerminalInit = true;
 				DeconstructorTerminalInit.InitControls<IMyShipGrinder>();
-
 			}
-
-			/*
-            var t = new MyObjectBuilder_GasTankDefinition();
-            t.Capacity = 10000;
-            if (t.StoredGasId.IsNull())
-            {
-                t.StoredGasId = new MyDefinitionId(typeof(MyObjectBuilder_GasProperties), "Oxygen");
-            }
-            */
 
 			deconstructor = (IMyShipGrinder)Entity;
 			if (deconstructor.CubeGrid?.Physics == null) // ignore projected and other non-physical grids
@@ -175,14 +199,14 @@ namespace DeconstructorModSE
 
 			LoadSettings();
 
-			NeedsUpdate = MyEntityUpdateEnum.EACH_100TH_FRAME; // allow UpdateAfterSimulation() and UpdateAfterSimulation100() to execute, remove if not needed
+			NeedsUpdate = MyEntityUpdateEnum.EACH_100TH_FRAME;
 
 			SaveSettings();
 		}
 
 		private void AddCustomInfo(IMyTerminalBlock block, StringBuilder info)
 		{
-			if (Settings.Time > 0)
+			if (Settings.IsGrinding)
 			{
 				info.Append($"Power Required: {Math.Round(GetPowerRequired() * 1000, 2)}Kw\n");
 			}
@@ -207,7 +231,9 @@ namespace DeconstructorModSE
 					Settings.Efficiency = loadedSettings.Efficiency;
 					Settings.IsGrinding = loadedSettings.IsGrinding;
 					Settings.Time = loadedSettings.Time;
+					Settings.TimeStarted = loadedSettings.TimeStarted;
 					Settings.Items = loadedSettings.Items;
+					Settings.HiddenGrids = loadedSettings.HiddenGrids;
 					return true;
 				}
 			}
@@ -250,105 +276,75 @@ namespace DeconstructorModSE
 			}
 		}
 
-		public override bool IsSerialized()
-		{
-			try
-			{
-				SaveSettings();
-			}
-			catch (Exception e)
-			{
-				DeconstructorLog.Error(e);
-			}
+		public override bool IsSerialized() => true;
 
-			return base.IsSerialized();
+		public override MyObjectBuilder_ComponentBase Serialize(bool copy = false)
+		{
+			SaveSettings();
+			return base.Serialize(copy);
+		}
+
+		public override void UpdateBeforeSimulation()
+		{
+			if (MyAPIGateway.Utilities.IsDedicated || Dissasemble == null) return;
+
+			iteration++;
+			if (iteration < count) return;
+			iteration = 0;
+
+			if (!Dissasemble.MoveNext())
+			{
+				Dissasemble.Dispose();
+				Dissasemble = null;
+				iteration = 0;
+				count = 0;
+				NeedsUpdate &= ~MyEntityUpdateEnum.EACH_FRAME;
+			}
 		}
 
 		public override void UpdateAfterSimulation100()
 		{
-			SyncSettings();
 			if (deconstructor.IsFunctional && deconstructor.IsWorking && deconstructor.Enabled)
 			{
-				if (Utils.Grids == null || Grids == null) return;
+				if (SelectedGrid == null)
+					if (Settings.IsGrinding)
+						Settings.IsGrinding = false;
+
+				if (!Settings.IsGrinding && (Grids == null || Grids.Count == 0)) return;
+
 				deconstructor.RefreshCustomInfo();
 
-				if (Settings.Time <= 0 && Settings.IsGrinding)
+				if (Settings.TimeStarted != null)
 				{
-					if (Settings.Items.Count > 0)
+					DeconstructorSession.Instance.TimerBox.UpdateVisual();
+
+					if ((Settings.Time - (DateTime.UtcNow - Settings.TimeStarted.Value)) <= TimeSpan.Zero)
 					{
-						Utils.SpawnItems(MyInventory, ref Settings.Items);
-						DeconstructorSession.Instance.ComponentList.UpdateVisual();
+						Settings.Time = TimeSpan.Zero;
+						Settings.TimeStarted = null;
+						SelectedGrid.Close();
+						SelectedGrid = null;
 					}
 					else
-					{
-						Settings.IsGrinding = false;
-						SetPower();
-					}
-				}
-				else
-				{
-					if (Settings.IsGrinding)
-					{
-						NeedsUpdate = MyEntityUpdateEnum.EACH_FRAME | MyEntityUpdateEnum.EACH_100TH_FRAME;
-					}
+						return;
 				}
 
+				if (SelectedGrid == null && Settings.Time == TimeSpan.Zero && Settings.Items.Count > 0)
+				{
+					Utils.SpawnItems(MyInventory, ref Settings.Items);
+					DeconstructorSession.Instance.ComponentList.UpdateVisual();
+					return;
+				}
+
+				Settings.IsGrinding = false;
 				Grids.Clear();
-				foreach (var grid in Utils.Grids)
-				{
-					if (grid.IsSameConstructAs(deconstructor.CubeGrid)) continue;
-					if ((grid.GetPosition() - deconstructor.GetPosition()).Length() > Range) continue;
-					if (grid.Physics == null) continue;
-
-					var cubGrid = grid as MyCubeGrid;
-					if (cubGrid.GetBiggestGridInGroup() != cubGrid) continue;
-
-					var shouldAddGrid = true;
-					var bigOwners = grid.BigOwners;
-					var gridOwner = bigOwners.Count > 0 ? bigOwners[0] : long.MaxValue;
-					var relationship = gridOwner != long.MaxValue ? MyIDModule.GetRelationPlayerBlock(deconstructor.OwnerId, gridOwner, MyOwnershipShareModeEnum.Faction) : MyRelationsBetweenPlayerAndBlock.NoOwnership;
-
-					// if the grid is neutral or friendly or is Owned by the Block Owner, add it to the list, no reason to even check for the other rules...
-					if (relationship != MyRelationsBetweenPlayerAndBlock.NoOwnership && relationship != MyRelationsBetweenPlayerAndBlock.Owner && relationship != MyRelationsBetweenPlayerAndBlock.FactionShare)
-					{
-						// if the grid is not factioned, check for owning all major blocks
-						foreach (var block in ((MyCubeGrid)grid).GetFatBlocks())
-						{
-							if (!Utils.SearchBlocks(block, deconstructor))
-							{
-								// if any block we care about is not owned by the grid owner, we don't want to add the grid
-								shouldAddGrid = false;
-								break;
-							}
-						}
-					}
-					if (shouldAddGrid)
-					{
-						Grids.Add(grid);
-					}
-				}
+				SetPower();
 			}
 			else
-				Grids.Clear();
-		}
-
-		public override void UpdateAfterSimulation()
-		{
-			if (deconstructor.IsFunctional && deconstructor.IsWorking && deconstructor.Enabled)
 			{
-				//60 ticks = 1 second
-				Settings.Time -= 1.0f / 60.0f;
-				if (Settings.Time > 0)
-				{
-					Mod.TimerBox.UpdateVisual();
-				}
-
-				if (Settings.Time <= 0)
-				{
-					Settings.Time = 0;
-					DeconstructorSession.Instance.TimerBox.UpdateVisual();
-					NeedsUpdate = MyEntityUpdateEnum.EACH_100TH_FRAME;
-				}
+				SelectedGrid = null;
+				Grids.Clear();
+				Settings.IsGrinding = false;
 			}
 		}
 

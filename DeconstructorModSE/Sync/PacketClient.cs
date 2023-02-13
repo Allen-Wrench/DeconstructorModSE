@@ -1,4 +1,6 @@
-﻿using ProtoBuf;
+﻿using System;
+using ProtoBuf;
+using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
 
 namespace DeconstructorModSE.Sync
@@ -20,14 +22,18 @@ namespace DeconstructorModSE.Sync
 		public float Efficiency;
 
 		[ProtoMember(4)]
-		public float Time;
+		public TimeSpan Time;
 
-		public void Send(long entityId, bool isGrinding, float Eff, float time)
+		[ProtoMember(5)]
+		public DateTime TimeStarted;
+
+		public void Send(long entityId, bool isGrinding, float Eff, TimeSpan time)
 		{
 			EntityId = entityId;
 			IsGrinding = isGrinding;
 			Efficiency = Eff;
 			Time = time;
+			TimeStarted = DateTime.UtcNow;
 
 			Networking.RelayToClients(this);
 		}
@@ -44,9 +50,14 @@ namespace DeconstructorModSE.Sync
 			if (logic == null)
 				return;
 
+			logic.Settings.IsGrinding = IsGrinding;
 			logic.Settings.Efficiency = Efficiency;
 			logic.Settings.Time = Time;
-			logic.Settings.IsGrinding = IsGrinding;
+			logic.Settings.TimeStarted = TimeStarted;
+
+			if (logic.SelectedGrid != null)
+				logic.DeconstructFX(logic.SelectedGrid as MyCubeGrid);
+			logic.DeconstructGrid(logic.SelectedGrid);
 
 			relay = false;
 		}

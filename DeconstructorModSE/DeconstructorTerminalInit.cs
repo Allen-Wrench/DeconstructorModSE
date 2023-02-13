@@ -1,17 +1,21 @@
-﻿using Sandbox.Game.Entities;
+﻿using Sandbox.Definitions;
+using Sandbox.Engine.Platform;
+using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
 using Sandbox.ModAPI.Interfaces.Terminal;
 using SpaceEngineers.Game.ModAPI;
 using System;
+using System.CodeDom;
 using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text;
 using VRage.Game;
 using VRage.Game.ModAPI;
+using VRage.Game.ModAPI.Interfaces;
 using VRage.ModAPI;
+using VRage.ObjectBuilders;
 using VRage.Utils;
+using VRageMath;
 
 namespace DeconstructorModSE
 {
@@ -21,16 +25,40 @@ namespace DeconstructorModSE
 
 		public static void InitControls<T>()
 		{
+			var searchButton = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, T>("SearchGrids");
+			searchButton.Visible = VisibilityCheck;
+			searchButton.Enabled = EnabledCheck;
+			searchButton.SupportsMultipleBlocks = false;
+			searchButton.Title = MyStringId.GetOrCompute("Search for Grids");
+			searchButton.Action = SearchButton_action;
+			MyAPIGateway.TerminalControls.AddControl<T>(searchButton);
+
 			var gridList = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlListbox, T>("Grids");
 			gridList.Visible = VisibilityCheck;
 			gridList.Enabled = EnabledCheck;
 			gridList.Multiselect = false;
 			gridList.SupportsMultipleBlocks = false;
-			gridList.VisibleRowsCount = 8;
+			gridList.VisibleRowsCount = 5;
 			gridList.Title = MyStringId.GetOrCompute("Grindable Grids");
 			gridList.ItemSelected = List_selected;
 			gridList.ListContent = List_content;
 			MyAPIGateway.TerminalControls.AddControl<T>(gridList);
+
+			var hideGridButton = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, T>("HideGrid");
+			hideGridButton.Visible = VisibilityCheck;
+			hideGridButton.Enabled = HideEnabledCheck;
+			hideGridButton.SupportsMultipleBlocks = false;
+			hideGridButton.Title = MyStringId.GetOrCompute("Hide Selected Grid");
+			hideGridButton.Action = HideButton_action;
+			MyAPIGateway.TerminalControls.AddControl<T>(hideGridButton);
+
+			var clearHiddenGridsButton = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, T>("ClearHiddenGrids");
+			clearHiddenGridsButton.Visible = VisibilityCheck;
+			clearHiddenGridsButton.Enabled = EnabledCheck;
+			clearHiddenGridsButton.SupportsMultipleBlocks = false;
+			clearHiddenGridsButton.Title = MyStringId.GetOrCompute("Clear Hidden Grids");
+			clearHiddenGridsButton.Action = ClearHiddenGridsButton_action;
+			MyAPIGateway.TerminalControls.AddControl<T>(clearHiddenGridsButton);
 
 			var TimerBox = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlTextbox, T>("Timer");
 			TimerBox.Visible = VisibilityCheck;
@@ -69,22 +97,24 @@ namespace DeconstructorModSE
 			componentList.ListContent = ComponentList_content;
 			MyAPIGateway.TerminalControls.AddControl<T>(componentList);
 
-			var api = ImmutableDictionary.CreateBuilder<string, Delegate>();
+			var api = new Dictionary<string, Delegate>();
 
 			api.Add("GetComponents", new Action<Sandbox.ModAPI.Ingame.IMyTerminalBlock, List<VRage.Game.ModAPI.Ingame.MyInventoryItem>>(GetComponents));
 			api.Add("CheckGrid", new Action<Sandbox.ModAPI.Ingame.IMyTerminalBlock, string, StringBuilder>(CheckGrid));
 			// more...
 
-			DeconstructorSession.Instance.APIMethods = api.ToImmutable();
+			DeconstructorSession.Instance.APIMethods = api;
 
 			var p = MyAPIGateway.TerminalControls.CreateProperty<IReadOnlyDictionary<string, Delegate>, T>("DeconstructorModAPI");
 			p.Getter = (b) => DeconstructorSession.Instance.APIMethods;
 			p.Setter = (b, v) => { };
 			MyAPIGateway.TerminalControls.AddControl<T>(p);
 
+			DeconstructorSession.Instance.SearchButton = searchButton;
 			DeconstructorSession.Instance.DeconButton = button;
-			DeconstructorSession.Instance.EfficiencySlider = efficiency;
 			DeconstructorSession.Instance.GridList = gridList;
+			DeconstructorSession.Instance.HideGridButton = hideGridButton;
+			DeconstructorSession.Instance.EfficiencySlider = efficiency;
 			DeconstructorSession.Instance.TimerBox = TimerBox;
 			DeconstructorSession.Instance.ComponentList = componentList;
 		}
@@ -95,7 +125,7 @@ namespace DeconstructorModSE
 		{
 			var system = GetBlock((IMyTerminalBlock)deconstructor);
 			if (system == null) output.AppendLine("block does not exist... how did you get this?");
-			var grid = Utils.Grids.Where(x => x.DisplayName == gridName).First();
+			var grid = system.Grids.Where(x => x.CustomName == gridName).FirstOrDefault();
 			if (grid == null)
 				output.AppendLine("Grid does not exist!");
 
@@ -160,10 +190,15 @@ namespace DeconstructorModSE
 			var system = GetBlock(b);
 			if (system == null) return new StringBuilder();
 			var Builder = new StringBuilder();
-			if (system.Settings != null && system.Settings.Time > 0)
+			if (system.Settings != null && system.Settings.Time != null)
 			{
-				var time = TimeSpan.FromSeconds(system.Settings.Time);
-				return Builder.Append($"{time:hh'h 'mm'm 'ss's '}");
+				if (system.Settings.TimeStarted == null)
+					return Builder.Append($"{system.Settings.Time:hh'h 'mm'm 'ss's '}");
+				else
+				{
+					TimeSpan time = system.Settings.Time - (DateTime.UtcNow - system.Settings.TimeStarted.Value);
+					return Builder.Append($"{time:hh'h 'mm'm 'ss's '}");
+				}
 			}
 			else
 			{
@@ -180,6 +215,54 @@ namespace DeconstructorModSE
 		{
 			var system = GetBlock(block);
 			return system != null && !system.Settings.IsGrinding;
+		}
+
+		private static bool HideEnabledCheck(IMyTerminalBlock block)
+		{
+			var system = GetBlock(block);
+			return system != null && !system.Settings.IsGrinding && system.SelectedGrid != null;
+		}
+
+		private static void SearchButton_action(IMyTerminalBlock block)
+		{
+			var system = GetBlock(block);
+			if (system == null) return;
+			BoundingSphereD sphere = new BoundingSphereD(block.GetPosition(), DeconstructorSession.Instance.Settings.Range);
+			foreach (var entity in MyAPIGateway.Entities.GetTopMostEntitiesInSphere(ref sphere))
+			{
+				IMyCubeGrid grid = entity as IMyCubeGrid;
+				if (grid == null || grid.Physics == null || block.CubeGrid.IsSameConstructAs(grid) || system.Settings.HiddenGrids.Contains(grid.CustomName)) continue;
+				if ((grid.GetPosition() - block.GetPosition()).Length() > DeconstructorSession.Instance.Settings.Range) continue;
+				if (!system.Grids.Contains(grid))
+					system.Grids.Add(grid);
+			}
+
+			DeconstructorSession.Instance.GridList.UpdateVisual();
+		}
+
+		private static void HideButton_action(IMyTerminalBlock block)
+		{
+			var system = GetBlock(block);
+			if (system == null || system.SelectedGrid == null) return;
+
+			if (!system.Settings.HiddenGrids.Contains(system.SelectedGrid.CustomName))
+				system.Settings.HiddenGrids.Add(system.SelectedGrid.CustomName);
+
+			if (system.Grids.Contains(system.SelectedGrid))
+				system.Grids.Remove(system.SelectedGrid);
+
+			system.SelectedGrid = null;
+
+			DeconstructorSession.Instance.GridList.UpdateVisual();
+			DeconstructorSession.Instance.ComponentList.UpdateVisual();
+		}
+
+		private static void ClearHiddenGridsButton_action(IMyTerminalBlock block)
+		{
+			var system = GetBlock(block);
+			if (system != null && system.Settings.HiddenGrids.Count > 0)
+				system.Settings.HiddenGrids.Clear();
+			DeconstructorSession.Instance.GridList.UpdateVisual();
 		}
 
 		private static void Button_action(IMyTerminalBlock block)
@@ -203,6 +286,7 @@ namespace DeconstructorModSE
 				if (selected.Count > 0)
 				{
 					system.SelectedGrid = selected.First().UserData as IMyCubeGrid;
+					DeconstructorSession.Instance.ComponentList.UpdateVisual();
 				}
 				else
 					system.SelectedGrid = null;
@@ -212,7 +296,8 @@ namespace DeconstructorModSE
 		private static void ComponentList_content(IMyTerminalBlock block, List<MyTerminalControlListBoxItem> items, List<MyTerminalControlListBoxItem> selected)
 		{
 			var system = GetBlock(block);
-			if (system != null && system.Settings.Items != null && system.Settings.Items.Count > 0)
+			if (system == null) return;
+			if (system.Settings.Items != null && system.Settings.Items.Count > 0)
 			{
 				for (var i = system.Settings.Items.Count - 1; i > -1; i--)
 				{
@@ -221,7 +306,65 @@ namespace DeconstructorModSE
 					var BoxItem = new MyTerminalControlListBoxItem(MyStringId.GetOrCompute(name.ToString()), MyStringId.NullOrEmpty, null);
 					items.Add(BoxItem);
 				}
+				return;
 			}
+
+			if (system.SelectedGrid != null)
+			{
+				Dictionary<string, int> content = GetComponents(system.SelectedGrid as MyCubeGrid);
+
+				if (content != null && content.Count > 0)
+				{
+					foreach (var thing in content)
+						items.Add(new MyTerminalControlListBoxItem(MyStringId.GetOrCompute($"{thing.Key}: {thing.Value:N0}"), MyStringId.NullOrEmpty, null));
+				}
+			}
+		}
+
+		private static Dictionary<string, int> GetComponents(MyCubeGrid grid)
+		{
+			Dictionary<string, int> content = new Dictionary<string, int>();
+			Dictionary<string, int> missing = new Dictionary<string, int>();
+			foreach (IMySlimBlock b in grid.CubeBlocks)
+			{
+				foreach (var comp in (b.BlockDefinition as MyCubeBlockDefinition).Components)
+				{
+					string name = comp.DeconstructItem.Id.SubtypeName;
+					if (content.ContainsKey(name))
+						content[name] += comp.Count;
+					else
+						content.Add(name, comp.Count);
+				}
+				if (!b.IsFullIntegrity)
+				{
+					b.GetMissingComponents(missing);
+					foreach (var kvp in missing)
+					{
+						if (content.ContainsKey(kvp.Key))
+						{
+							content[kvp.Key] -= kvp.Value;
+							if (content[kvp.Key] < 0)
+								content[kvp.Key] = 0;
+						}
+					}
+					missing.Clear();
+				}
+			}
+			foreach (var inv in grid.Inventories)
+			{
+				for (int i = 0; i < inv.InventoryCount; i++)
+				{
+					foreach (var item in inv.GetInventory(i).GetItems())
+					{
+						string name = item.Content.SubtypeName;
+						if (!content.ContainsKey(name))
+							content.Add(name, (int)item.Amount);
+						else
+							content[name] += (int)item.Amount;
+					}
+				}
+			}
+			return content;
 		}
 
 		private static void List_content(IMyTerminalBlock block, List<MyTerminalControlListBoxItem> items, List<MyTerminalControlListBoxItem> selected)

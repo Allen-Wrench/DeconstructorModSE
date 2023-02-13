@@ -4,7 +4,7 @@ using Sandbox.ModAPI;
 namespace DeconstructorModSE.Sync
 {
 	[ProtoContract(UseProtoMembersOnly = true)]
-	public class PacketBlockSettings : PacketBase
+	public class PacketSettings : PacketBase
 	{
 		[ProtoMember(1)]
 		public long EntityId;
@@ -12,7 +12,13 @@ namespace DeconstructorModSE.Sync
 		[ProtoMember(2)]
 		public DeconstructorBlockSettings Settings;
 
-		public PacketBlockSettings() { }
+        [ProtoMember(3)]
+        public ulong RequestingSteamId;
+
+        [ProtoMember(4)]
+        public ModSettings ModSettings;
+
+		public PacketSettings() { }
 
         public void Send(long entityId, DeconstructorBlockSettings settings)
         {
@@ -25,8 +31,28 @@ namespace DeconstructorModSE.Sync
                 Networking.SendToServer(this);
         }
 
-        public override void Received(ref bool relay)
+		public void RequestSettings()
+		{
+            if (MyAPIGateway.Utilities.IsDedicated || MyAPIGateway.Session.IsServer) return;
+			RequestingSteamId = MyAPIGateway.Multiplayer.MyId;
+			Networking.SendToServer(this);
+		}
+
+		public override void Received(ref bool relay)
         {
+            if (MyAPIGateway.Multiplayer.IsServer && RequestingSteamId != 0)
+            {
+                PacketSettings s = new PacketSettings();
+                s.ModSettings = DeconstructorSession.Instance.Settings;
+                Networking.SendToPlayer(s, RequestingSteamId);
+                return;
+            }
+            else if (!MyAPIGateway.Multiplayer.IsServer && ModSettings != null)
+            {
+                DeconstructorSession.Instance.SettingsFromServer(ModSettings);
+                return;
+            }
+
             var block = MyAPIGateway.Entities.GetEntityById(this.EntityId) as IMyShipGrinder;
 
             if (block == null)

@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29609.76
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33122.133
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeconstructorModSE", "DeconstructorModSE\DeconstructorModSE.csproj", "{B0056CE0-B1B7-4CCA-8852-BF9D276EA167}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeconstructorModSE", "DeconstructorModSE.csproj", "{B0056CE0-B1B7-4CCA-8852-BF9D276EA167}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
