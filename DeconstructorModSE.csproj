@@ -150,18 +150,56 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DeconstructorModSE\DeconstructorBlockSettings.cs" />
-    <Compile Include="DeconstructorModSE\DeconstructorLog.cs" />
-    <Compile Include="DeconstructorModSE\DeconstructorMod.cs" />
-    <Compile Include="DeconstructorModSE\DeconstructorSession.cs" />
-    <Compile Include="DeconstructorModSE\DeconstructorUtils.cs" />
-    <Compile Include="DeconstructorModSE\ModSettings.cs" />
-    <Compile Include="DeconstructorModSE\Sync\Networking.cs" />
-    <Compile Include="DeconstructorModSE\Sync\PacketBase.cs" />
-    <Compile Include="DeconstructorModSE\Sync\PacketBlockSettings.cs" />
-    <Compile Include="DeconstructorModSE\Sync\PacketClient.cs" />
-    <Compile Include="DeconstructorModSE\Sync\PacketServer.cs" />
-    <Compile Include="DeconstructorModSE\DeconstructorTerminalInit.cs" />
+    <Compile Include="Deconstructor\Data\Scripts\Deconstructor\Settings\ClientSettings.cs" />
+    <Compile Include="Deconstructor\Data\Scripts\Deconstructor\Settings\BlockSettings.cs" />
+    <Compile Include="Deconstructor\Data\Scripts\Deconstructor\DeconstructorLog.cs" />
+    <Compile Include="Deconstructor\Data\Scripts\Deconstructor\DeconstructorMod.cs" />
+    <Compile Include="Deconstructor\Data\Scripts\Deconstructor\DeconstructorSession.cs" />
+    <Compile Include="Deconstructor\Data\Scripts\Deconstructor\DeconstructorUtils.cs" />
+    <Compile Include="Deconstructor\Data\Scripts\Deconstructor\Settings\ModSettings.cs" />
+    <Compile Include="Deconstructor\Data\Scripts\Deconstructor\Sync\Networking.cs" />
+    <Compile Include="Deconstructor\Data\Scripts\Deconstructor\Sync\PacketBase.cs" />
+    <Compile Include="Deconstructor\Data\Scripts\Deconstructor\Sync\PacketSettings.cs" />
+    <Compile Include="Deconstructor\Data\Scripts\Deconstructor\Sync\PacketClient.cs" />
+    <Compile Include="Deconstructor\Data\Scripts\Deconstructor\Sync\PacketServer.cs" />
+    <Compile Include="Deconstructor\Data\Scripts\Deconstructor\DeconstructorTerminalInit.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="Deconstructor\Data\BlockCategories_Deconstructor.sbc" />
+    <Content Include="Deconstructor\Data\BlueprintClasses_Deconstructor.sbc" />
+    <Content Include="Deconstructor\Data\CubeBlock_Deconstructor.sbc" />
+    <Content Include="Deconstructor\Data\EntityComponents_Deconstructor.sbc" />
+    <Content Include="Deconstructor\Data\EntityContainers_Deconstructor.sbc" />
+    <Content Include="Deconstructor\Data\ResearchBlocks_Deconstructor.sbc" />
+    <Content Include="Deconstructor\metadata.mod" />
+    <Content Include="Deconstructor\Textures\CableADD.dds" />
+    <Content Include="Deconstructor\Textures\CableCM.dds" />
+    <Content Include="Deconstructor\Textures\CableNG.dds" />
+    <Content Include="Deconstructor\Textures\CableRedCM.dds" />
+    <Content Include="Deconstructor\Textures\CrackedCableADD.dds" />
+    <Content Include="Deconstructor\Textures\CrackedCableCM.dds" />
+    <Content Include="Deconstructor\Textures\CrackedCableNG.dds" />
+    <Content Include="Deconstructor\Textures\DeconstructorRenderIcon.dds" />
+    <Content Include="Deconstructor\Textures\FusionShellADD.dds" />
+    <Content Include="Deconstructor\Textures\FusionShellCM.dds" />
+    <Content Include="Deconstructor\Textures\FusionShellNG.dds" />
+    <Content Include="Deconstructor\Textures\GlowCoreCM.dds" />
+    <Content Include="Deconstructor\Textures\HazardADD.dds" />
+    <Content Include="Deconstructor\Textures\HazardCM.dds" />
+    <Content Include="Deconstructor\Textures\HazardNG.dds" />
+    <Content Include="Deconstructor\Textures\HeatGlowADD.dds" />
+    <Content Include="Deconstructor\Textures\HeatGlowCM.dds" />
+    <Content Include="Deconstructor\Textures\HeatGlowNG.dds" />
+    <Content Include="Deconstructor\Textures\MetalADD.dds" />
+    <Content Include="Deconstructor\Textures\MetalCM.dds" />
+    <Content Include="Deconstructor\Textures\MetalNG.dds" />
+    <Content Include="Deconstructor\Textures\RoughPlasticADD.dds" />
+    <Content Include="Deconstructor\Textures\RoughPlasticCM.dds" />
+    <Content Include="Deconstructor\Textures\RoughPlasticNG.dds" />
+    <Content Include="Deconstructor\thumb.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Deconstructor\Models\Deconstructor.mwm" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
