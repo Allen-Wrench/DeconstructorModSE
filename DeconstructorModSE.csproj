@@ -171,35 +171,6 @@
     <Content Include="Deconstructor\Data\EntityComponents_Deconstructor.sbc" />
     <Content Include="Deconstructor\Data\EntityContainers_Deconstructor.sbc" />
     <Content Include="Deconstructor\Data\ResearchBlocks_Deconstructor.sbc" />
-    <Content Include="Deconstructor\metadata.mod" />
-    <Content Include="Deconstructor\Textures\CableADD.dds" />
-    <Content Include="Deconstructor\Textures\CableCM.dds" />
-    <Content Include="Deconstructor\Textures\CableNG.dds" />
-    <Content Include="Deconstructor\Textures\CableRedCM.dds" />
-    <Content Include="Deconstructor\Textures\CrackedCableADD.dds" />
-    <Content Include="Deconstructor\Textures\CrackedCableCM.dds" />
-    <Content Include="Deconstructor\Textures\CrackedCableNG.dds" />
-    <Content Include="Deconstructor\Textures\DeconstructorRenderIcon.dds" />
-    <Content Include="Deconstructor\Textures\FusionShellADD.dds" />
-    <Content Include="Deconstructor\Textures\FusionShellCM.dds" />
-    <Content Include="Deconstructor\Textures\FusionShellNG.dds" />
-    <Content Include="Deconstructor\Textures\GlowCoreCM.dds" />
-    <Content Include="Deconstructor\Textures\HazardADD.dds" />
-    <Content Include="Deconstructor\Textures\HazardCM.dds" />
-    <Content Include="Deconstructor\Textures\HazardNG.dds" />
-    <Content Include="Deconstructor\Textures\HeatGlowADD.dds" />
-    <Content Include="Deconstructor\Textures\HeatGlowCM.dds" />
-    <Content Include="Deconstructor\Textures\HeatGlowNG.dds" />
-    <Content Include="Deconstructor\Textures\MetalADD.dds" />
-    <Content Include="Deconstructor\Textures\MetalCM.dds" />
-    <Content Include="Deconstructor\Textures\MetalNG.dds" />
-    <Content Include="Deconstructor\Textures\RoughPlasticADD.dds" />
-    <Content Include="Deconstructor\Textures\RoughPlasticCM.dds" />
-    <Content Include="Deconstructor\Textures\RoughPlasticNG.dds" />
-    <Content Include="Deconstructor\thumb.png" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Deconstructor\Models\Deconstructor.mwm" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
