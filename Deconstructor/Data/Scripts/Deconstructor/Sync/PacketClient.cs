@@ -19,19 +19,15 @@ namespace DeconstructorModSE.Sync
 		public bool IsGrinding;
 
 		[ProtoMember(3)]
-		public float Efficiency;
+		public DateTime TimeStarted;
 
 		[ProtoMember(4)]
 		public TimeSpan Time;
 
-		[ProtoMember(5)]
-		public DateTime TimeStarted;
-
-		public void Send(long entityId, bool isGrinding, float Eff, TimeSpan time, DateTime timeStarted)
+		public void Send(long entityId, bool isGrinding, TimeSpan time, DateTime timeStarted)
 		{
 			EntityId = entityId;
 			IsGrinding = isGrinding;
-			Efficiency = Eff;
 			Time = time;
 			TimeStarted = timeStarted;
 
@@ -51,7 +47,6 @@ namespace DeconstructorModSE.Sync
 				return;
 
 			logic.Settings.IsGrinding = IsGrinding;
-			logic.Settings.Efficiency = Efficiency;
 			logic.Settings.Time = Time;
 			logic.Settings.TimeStarted = TimeStarted;
 

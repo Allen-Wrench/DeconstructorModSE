@@ -166,11 +166,13 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="Deconstructor\Data\BlockCategories_Deconstructor.sbc" />
-    <Content Include="Deconstructor\Data\BlueprintClasses_Deconstructor.sbc" />
     <Content Include="Deconstructor\Data\CubeBlock_Deconstructor.sbc" />
     <Content Include="Deconstructor\Data\EntityComponents_Deconstructor.sbc" />
     <Content Include="Deconstructor\Data\EntityContainers_Deconstructor.sbc" />
-    <Content Include="Deconstructor\Data\ResearchBlocks_Deconstructor.sbc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Deconstructor\Models\" />
+    <Folder Include="Deconstructor\Textures\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

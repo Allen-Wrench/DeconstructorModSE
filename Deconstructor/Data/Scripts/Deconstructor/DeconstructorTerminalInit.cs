@@ -67,17 +67,17 @@ namespace DeconstructorModSE
 			TimerBox.Title = MyStringId.GetOrCompute("Grind Time");
 			MyAPIGateway.TerminalControls.AddControl<T>(TimerBox);
 
-			var efficiency = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlSlider, T>("Efficiency");
-			efficiency.Enabled = EnabledCheck;
-			efficiency.Visible = VisibilityCheck;
-			efficiency.SetLimits(0, 99);
-			efficiency.SupportsMultipleBlocks = false;
-			efficiency.Title = MyStringId.GetOrCompute("Efficiency");
-			efficiency.Tooltip = MyStringId.GetOrCompute("Reduces deconstruction time, but increases power required");
-			efficiency.Setter = Slider_setter;
-			efficiency.Getter = Slider_getter;
-			efficiency.Writer = Slider_writer;
-			MyAPIGateway.TerminalControls.AddControl<T>(efficiency);
+			//var efficiency = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlSlider, T>("Efficiency");
+			//efficiency.Enabled = EnabledCheck;
+			//efficiency.Visible = VisibilityCheck;
+			//efficiency.SetLimits(0, 99);
+			//efficiency.SupportsMultipleBlocks = false;
+			//efficiency.Title = MyStringId.GetOrCompute("Efficiency");
+			//efficiency.Tooltip = MyStringId.GetOrCompute("Reduces deconstruction time, but increases power required");
+			//efficiency.Setter = Slider_setter;
+			//efficiency.Getter = Slider_getter;
+			//efficiency.Writer = Slider_writer;
+			//MyAPIGateway.TerminalControls.AddControl<T>(efficiency);
 
 			var deconstructButton = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, T>("StartDecon");
 			deconstructButton.Visible = VisibilityCheck;
@@ -114,7 +114,7 @@ namespace DeconstructorModSE
 			DecSession.GridList = gridList;
 			DecSession.HideGridButton = hideGridButton;
 			DecSession.ClearHiddenButton= clearHiddenGridsButton;
-			DecSession.EfficiencySlider = efficiency;
+			//DecSession.EfficiencySlider = efficiency;
 			DecSession.TimerBox = TimerBox;
 			DecSession.ComponentList = componentList;
 		}
@@ -339,30 +339,30 @@ namespace DeconstructorModSE
 			}
 		}
 
-		private static void Slider_setter(IMyTerminalBlock block, float value)
-		{
-			var system = GetBlock(block);
-			if (system != null)
-			{
-				system.Efficiency = (float)Math.Floor(value);
-			}
-		}
-
-		private static float Slider_getter(IMyTerminalBlock block)
-		{
-			var system = GetBlock(block);
-			if (system != null)
-			{
-				return system.Efficiency;
-			}
-			return 0;
-		}
-
-		private static void Slider_writer(IMyTerminalBlock block, StringBuilder info)
-		{
-			var system = GetBlock(block);
-			if (system != null)
-				info.Append($"{system.Efficiency}%");
-		}
+		//private static void Slider_setter(IMyTerminalBlock block, float value)
+		//{
+		//	var system = GetBlock(block);
+		//	if (system != null)
+		//	{
+		//		system.Efficiency = (float)Math.Floor(value);
+		//	}
+		//}
+		//
+		//private static float Slider_getter(IMyTerminalBlock block)
+		//{
+		//	var system = GetBlock(block);
+		//	if (system != null)
+		//	{
+		//		return system.Efficiency;
+		//	}
+		//	return 0;
+		//}
+		//
+		//private static void Slider_writer(IMyTerminalBlock block, StringBuilder info)
+		//{
+		//	var system = GetBlock(block);
+		//	if (system != null)
+		//		info.Append($"{system.Efficiency}%");
+		//}
 	}
 }

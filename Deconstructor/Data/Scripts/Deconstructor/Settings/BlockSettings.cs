@@ -10,7 +10,7 @@ namespace DeconstructorModSE
 	public class BlockSettings
 	{
 		[ProtoMember(1)]
-		public float Efficiency;
+		public long SelectedGrid;
 
 		[ProtoMember(2)]
 		public bool IsGrinding;
@@ -25,9 +25,6 @@ namespace DeconstructorModSE
 		public List<MyObjectBuilder_InventoryItem> Items = new List<MyObjectBuilder_InventoryItem>();
 
 		[ProtoMember(6)]
-		public long SelectedGrid;
-
-		[ProtoMember(7)]
 		public string Error = "";
 	}
 }

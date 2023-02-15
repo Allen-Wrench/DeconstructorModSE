@@ -20,19 +20,16 @@ using IMyShipGrinder = Sandbox.ModAPI.IMyShipGrinder;
 
 namespace DeconstructorModSE
 {
-	[MyEntityComponentDescriptor(typeof(MyObjectBuilder_ShipGrinder), false, "LargeDeconstructor")]
+	[MyEntityComponentDescriptor(typeof(MyObjectBuilder_ShipGrinder), false, new string[] {"Deconstructor_1", "Deconstructor_2", "Deconstructor_3", "Deconstructor_4"})]
 	public class DeconstructorMod : MyGameLogicComponent
 	{
 		private DeconstructorSession Mod => DeconstructorSession.Instance;
 		//Settings
 		public ModSettings ModSettings => Mod.ModSettings;
-		public float Range => ModSettings.Range;
-		public float Power => ModSettings.Power;
-		public float Efficiency_Min => ModSettings.Efficiency_Min;
-		public float Efficiency_Max => ModSettings.Efficiency_Max;
+		public float Range { get; private set; }
+		public float Power { get; private set; }
+		public float Efficiency { get; private set; }
 
-		public const int SETTINGS_CHANGED_COUNTDOWN = 10;
-		private int syncCounter;
 		public readonly Guid SETTINGS_GUID = new Guid("1EAB58EE-7304-45D2-B3C8-9BA2DC31EF90");
 		public BlockSettings Settings = new BlockSettings();
 		private IMyShipGrinder deconstructor;
@@ -64,26 +61,6 @@ namespace DeconstructorModSE
 					if (!MyAPIGateway.Utilities.IsDedicated)
 					{
 						Mod.UpdateTerminal();
-					}
-				}
-			}
-		}
-
-		public float Efficiency
-		{
-			get { return Settings.Efficiency; }
-			set
-			{
-				var val = MathHelper.Clamp(value, Efficiency_Min, Efficiency_Max);
-				if (Settings.Efficiency != val)
-				{
-					Settings.Efficiency = val;
-					if (_SGrid != null)
-					{
-						GetGrindTime(_SGrid);
-
-						if (!MyAPIGateway.Utilities.IsDedicated)
-							Mod.TimerBox.UpdateVisual();
 					}
 				}
 			}
@@ -140,7 +117,6 @@ namespace DeconstructorModSE
 				GetGrindTime(target);
 				DeconstructGrid(target);
 				SaveSettings(true);
-				//Mod.CachedPacketClient.Send(deconstructor.EntityId, Settings.IsGrinding, Settings.Efficiency, Settings.Time, Settings.TimeStarted.Value);
 			}
 		}
 
@@ -213,6 +189,17 @@ namespace DeconstructorModSE
 			if (deconstructor == null && deconstructor.CubeGrid?.Physics == null) // ignore projected and other non-physical grids
 				return;
 
+			foreach (var tier in ModSettings.BlockConfigs)
+			{
+				if (deconstructor.BlockDefinition.SubtypeName == tier.SubtypeName)
+				{
+					Efficiency = tier.Efficiency;
+					Power = tier.Power;
+					Range = tier.Range;
+					break;
+				}
+			}
+
 			MyInventory = deconstructor.GetInventory();
 			sink = deconstructor.ResourceSink as MyResourceSinkComponent;
 
@@ -257,7 +244,6 @@ namespace DeconstructorModSE
 
 				if (loadedSettings != null)
 				{
-					Settings.Efficiency = loadedSettings.Efficiency;
 					Settings.IsGrinding = loadedSettings.IsGrinding;
 					Settings.Time = loadedSettings.Time;
 					Settings.TimeStarted = loadedSettings.TimeStarted;

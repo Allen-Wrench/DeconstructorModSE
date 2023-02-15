@@ -40,7 +40,6 @@ namespace DeconstructorModSE.Sync
 			if (logic == null)
 				return;
 
-			logic.Settings.Efficiency = Efficiency;
 			logic.Settings.SelectedGrid = TargetId;
 			logic.Settings.Error = "";
 			logic.SyncServer(TargetId);

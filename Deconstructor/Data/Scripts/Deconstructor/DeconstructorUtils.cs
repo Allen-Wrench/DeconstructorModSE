@@ -17,7 +17,6 @@ namespace DeconstructorModSE
 	public static class Utils
 	{
 		private static Dictionary<MyDefinitionId, MyPhysicalInventoryItem> TempItems = new Dictionary<MyDefinitionId, MyPhysicalInventoryItem>();
-		//private static Dictionary<string, MyObjectBuilder_InventoryItem> TempItems = new Dictionary<string, MyObjectBuilder_InventoryItem>();
 
 		public static void DeconstructGrid(IMyInventory inventory, ref IMyCubeGrid SelectedGrid, ref List<MyObjectBuilder_InventoryItem> Items)
 		{
@@ -162,7 +161,7 @@ namespace DeconstructorModSE
 			}
 
 			if (calcEff)
-				totalTime *= (100.0f - MyBlock.Settings.Efficiency) / 100.0f;
+				totalTime *= (100.0f - MyBlock.Efficiency) / 100.0f;
 			else
 				totalTime *= 100.0f / 100.0f;
 

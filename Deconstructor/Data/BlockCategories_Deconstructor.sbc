@@ -6,10 +6,13 @@
         <TypeId>GuiBlockCategoryDefinition</TypeId>
         <SubtypeId/>
       </Id>
-      <DisplayName>Calculated Destruction</DisplayName>
-      <Name>Calculated Destruction</Name>
+      <DisplayName>Deconstructor</DisplayName>
+      <Name>Deconstructor</Name>
       <ItemIds>
-		<string>ShipGrinder/LargeDeconstructor</string>
+		    <string>ShipGrinder/Deconstructor_1</string>
+        <string>ShipGrinder/Deconstructor_2</string>
+        <string>ShipGrinder/Deconstructor_3</string>
+        <string>ShipGrinder/Deconstructor_4</string>
       </ItemIds>
     </Category>
 </CategoryClasses>
