@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <EntityContainers>
+    <Container>
+      <Id>
+        <TypeId>ShipGrinder</TypeId>
+        <SubtypeId>Dematerializer_1</SubtypeId>
+      </Id>
+      <DefaultComponents>
+        <Component BuilderType="MyObjectBuilder_Inventory" SubtypeId="Dematerializer_1" ForceCreate="true"/>
+      </DefaultComponents>
+    </Container>
+    <Container>
+      <Id>
+        <TypeId>ShipGrinder</TypeId>
+        <SubtypeId>Dematerializer_2</SubtypeId>
+      </Id>
+      <DefaultComponents>
+        <Component BuilderType="MyObjectBuilder_Inventory" SubtypeId="Dematerializer_2" ForceCreate="true"/>
+      </DefaultComponents>
+    </Container>
+    <Container>
+      <Id>
+        <TypeId>ShipGrinder</TypeId>
+        <SubtypeId>Dematerializer_3</SubtypeId>
+      </Id>
+      <DefaultComponents>
+        <Component BuilderType="MyObjectBuilder_Inventory" SubtypeId="Dematerializer_3" ForceCreate="true"/>
+      </DefaultComponents>
+    </Container>
+    <Container>
+      <Id>
+        <TypeId>ShipGrinder</TypeId>
+        <SubtypeId>Dematerializer_4</SubtypeId>
+      </Id>
+      <DefaultComponents>
+        <Component BuilderType="MyObjectBuilder_Inventory" SubtypeId="Dematerializer_4" ForceCreate="true"/>
+      </DefaultComponents>
+    </Container>
+  </EntityContainers>
+</Definitions>
