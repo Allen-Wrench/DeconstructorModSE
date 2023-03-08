@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using VRage.Game.ModAPI;
+using VRage.Utils;
 
 namespace Dematerializer.Sync
 {
@@ -38,7 +39,7 @@ namespace Dematerializer.Sync
 			}
 			catch (Exception e)
 			{
-				DematerializerLog.Error(e);
+				MyLog.Default.Error("[Dematerializer]: " + e.Message);
 			}
 		}
 

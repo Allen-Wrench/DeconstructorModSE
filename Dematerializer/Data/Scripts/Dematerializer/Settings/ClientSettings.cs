@@ -1,13 +1,15 @@
 ﻿using ProtoBuf;
 using Sandbox.ModAPI;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using VRage.Game;
 using VRage.Game.ModAPI;
 using VRage.Utils;
 
 namespace Dematerializer
 {
-	[ProtoContract(UseProtoMembersOnly = true)]
+	[ProtoContract]
 	public class ClientSettings
 	{
 		[ProtoMember(1)]

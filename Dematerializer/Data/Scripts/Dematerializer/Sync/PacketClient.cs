@@ -1,7 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using ProtoBuf;
 using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
+using VRage.Game;
+using VRage.Game.ModAPI;
 
 namespace Dematerializer.Sync
 {
@@ -16,46 +19,55 @@ namespace Dematerializer.Sync
 		public long EntityId;
 
 		[ProtoMember(2)]
-		public bool IsGrinding;
+		public long TargetId;
 
 		[ProtoMember(3)]
-		public DateTime TimeStarted;
+		public List<MyObjectBuilder_InventoryItem> ItemList = new List<MyObjectBuilder_InventoryItem>();
 
-		[ProtoMember(4)]
-		public TimeSpan Time;
-
-		public void Send(long entityId, bool isGrinding, TimeSpan time, DateTime timeStarted)
+		public void SendProgressUpdate(long entityId, long targetId, List<MyObjectBuilder_InventoryItem> items)
 		{
 			EntityId = entityId;
-			IsGrinding = isGrinding;
-			Time = time;
-			TimeStarted = timeStarted;
+			TargetId = targetId;
+			if (items != null)
+				ItemList = items;
+			else
+				ItemList = new List<MyObjectBuilder_InventoryItem>(); 
 
 			Networking.RelayToClients(this);
 		}
 
 		public override void Received(ref bool relay)
 		{
-			var block = MyAPIGateway.Entities.GetEntityById(EntityId) as IMyShipGrinder;
-
-			if (block == null)
-				return;
-
-			var logic = block.GameLogic?.GetAs<DematerializerBlock>();
-
-			if (logic == null)
-				return;
-
-			logic.Settings.IsGrinding = IsGrinding;
-			logic.Settings.Time = Time;
-			logic.Settings.TimeStarted = TimeStarted;
-
-			logic.DematerializeGrid(logic.SelectedGrid);
-			logic.DematerializeFX(logic.SelectedGrid as MyCubeGrid);
-
-			DematerializerSession.Instance.UpdateTerminal();
-
 			relay = false;
+
+			var block = MyAPIGateway.Entities.GetEntityById(EntityId) as IMyShipGrinder;
+			if (block == null || block.GameLogic == null) return;
+
+			var logic = block.GameLogic.GetAs<DematerializerBlock>();
+			if (logic == null) return;
+
+			if (ItemList.Count > 0)
+			{
+				logic.Items = ItemList;
+			}
+
+			if (TargetId != 0)
+			{
+				IMyCubeGrid grid = MyAPIGateway.Entities.GetEntityById(TargetId) as IMyCubeGrid;
+				if (grid == null) return;
+
+				if (logic.Dissasemble != null)
+				{
+					logic.Dissasemble.Dispose();
+					logic.Dissasemble = null;
+					logic.NeedsUpdate &= ~VRage.ModAPI.MyEntityUpdateEnum.EACH_FRAME;
+				}
+				logic.Grids.Remove(grid);
+				grid.Close();
+				return;
+			}
+
+			logic.Items.Clear();
 		}
 	}
 }

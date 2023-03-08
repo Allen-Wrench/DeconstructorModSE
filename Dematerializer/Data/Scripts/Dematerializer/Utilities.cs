@@ -18,9 +18,9 @@ namespace Dematerializer
 	{
 		private static Dictionary<MyDefinitionId, MyPhysicalInventoryItem> TempItems = new Dictionary<MyDefinitionId, MyPhysicalInventoryItem>();
 
-		public static void DematerializeGrid(IMyInventory inventory, ref IMyCubeGrid SelectedGrid, ref List<MyObjectBuilder_InventoryItem> Items)
+		public static List<MyObjectBuilder_InventoryItem> GetComponentsServer(IMyInventory inventory, IMyCubeGrid SelectedGrid)
 		{
-			Items.Clear();
+			List<MyObjectBuilder_InventoryItem> Items = new List<MyObjectBuilder_InventoryItem>();
 			var Blocks = new List<IMySlimBlock>();
 			SelectedGrid.GetBlocks(Blocks);
 			
@@ -78,9 +78,10 @@ namespace Dematerializer
 				Items.Add(item.Value.GetObjectBuilder());
 			}
 			TempItems.Clear();
+			return Items;
 		}
 
-		public static Dictionary<string, MyObjectBuilder_InventoryItem> GetComponents(MyCubeGrid grid)
+		public static Dictionary<string, MyObjectBuilder_InventoryItem> GetComponentsClient(MyCubeGrid grid)
 		{
 			Dictionary<string, MyObjectBuilder_InventoryItem> content = new Dictionary<string, MyObjectBuilder_InventoryItem>();
 			Dictionary<string, int> missing = new Dictionary<string, int>();
@@ -130,7 +131,7 @@ namespace Dematerializer
 			return content;
 		}
 
-		public static TimeSpan GetGrindTime(DematerializerBlock MyBlock, ref IMyCubeGrid SelectedGrid, bool calcEff = true)
+		public static TimeSpan GetGrindTime(DematerializerBlock MyBlock, ref IMyCubeGrid SelectedGrid)
 		{
 			if (MyBlock == null || SelectedGrid == null)
 				return TimeSpan.Zero;
@@ -157,31 +158,21 @@ namespace Dematerializer
 				}
 
 				grindTime = block.MaxIntegrity / integrity / DematerializerSession.Instance.Session.WelderSpeedMultiplier / (1f / grindRatio) / DematerializerSession.Instance.Session.GrinderSpeedMultiplier;
-				totalTime += grindTime * block.BuildLevelRatio;
+				totalTime += grindTime * block.BuildLevelRatio * 0.25f;
 			}
 
-			if (calcEff)
-				totalTime *= (100.0f - MyBlock.Efficiency) / 100.0f;
-			else
-				totalTime *= 100.0f / 100.0f;
+			totalTime *= (100.0f - MyBlock.Efficiency) / 100.0f;
 
 			return TimeSpan.FromSeconds(totalTime);
 		}
 
-		public static bool SpawnItems(IMyInventory MyInventory, ref List<MyObjectBuilder_InventoryItem> items, List<string> blacklist)
+		public static bool SpawnItems(IMyInventory MyInventory, ref List<MyObjectBuilder_InventoryItem> items)
 		{
 			MyFixedPoint amount;
 			bool stalled = true;
 
 			for (var i = items.Count - 1; i >= 0; i--)
 			{
-				while (blacklist.Contains(items[i].PhysicalContent.SubtypeName))
-				{
-					items.RemoveAtFast(i);
-					i--;
-					if (i < 0) return true;
-				}
-
 				amount = GetMaxAmountPossible(MyInventory, items[i]);
 				if (amount > 0)
 				{

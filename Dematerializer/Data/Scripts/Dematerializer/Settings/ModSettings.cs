@@ -14,16 +14,16 @@ namespace Dematerializer
 	public class ModSettings
 	{
 		[ProtoMember(1)]
-		public TierSettings Tier1 = new TierSettings("Dematerializer_1", 250, 1000, 65);
+		public TierSettings Tier1 = new TierSettings("Dematerializer_1", 500, 1000, 25);
 
 		[ProtoMember(2)]
-		public TierSettings Tier2 = new TierSettings("Dematerializer_2", 500, 2500, 70);
+		public TierSettings Tier2 = new TierSettings("Dematerializer_2", 1000, 2500, 50);
 
 		[ProtoMember(3)]
-		public TierSettings Tier3 = new TierSettings("Dematerializer_3", 1000, 5000, 85);
+		public TierSettings Tier3 = new TierSettings("Dematerializer_3", 1500, 5000, 75);
 
 		[ProtoMember(4)]
-		public TierSettings Tier4 = new TierSettings("Dematerializer_4", 2000, 10000, 99);
+		public TierSettings Tier4 = new TierSettings("Dematerializer_4", 2000, 10000, 90);
 		
 
 		public ModSettings() { }
@@ -95,7 +95,7 @@ namespace Dematerializer
 		public float Range; // in meters, radius of sphere around grinder to search for grids to grind
 
 		[ProtoMember(102)]
-		public float Power; // base power consumption (not grinding) in MW. when grinding, increases according to efficiency.
+		public float Power; // power consumption in MW when grinding.
 
 		[ProtoMember(103)]
 		public float Efficiency; // higher = faster grinding speed (max 100 = instant grinding (i think))

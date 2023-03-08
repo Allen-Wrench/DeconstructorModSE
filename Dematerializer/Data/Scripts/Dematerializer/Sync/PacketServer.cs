@@ -1,6 +1,9 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using ProtoBuf;
+using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
+using VRage.Game;
 
 namespace Dematerializer.Sync
 {
@@ -20,7 +23,10 @@ namespace Dematerializer.Sync
 		[ProtoMember(3)]
 		public List<string> Blacklist = new List<string>();
 
-		public void Send(long entityId, long targetId, List<string> blacklist)
+		[ProtoMember(4)]
+		public List<MyObjectBuilder_InventoryItem> ItemList = new List<MyObjectBuilder_InventoryItem>();
+
+		public void BeginGrindingRequest(long entityId, long targetId, List<string> blacklist)
 		{
 			EntityId = entityId;
 			TargetId = targetId;
@@ -28,6 +34,17 @@ namespace Dematerializer.Sync
 				Blacklist = blacklist;
 
 			Networking.SendToServer(this);
+		}
+
+		public void SendItemsReply(List<MyObjectBuilder_InventoryItem> list)
+		{
+			var block = MyAPIGateway.Entities.GetEntityById(EntityId) as IMyShipGrinder;
+			var logic = block?.GameLogic?.GetAs<DematerializerBlock>();
+
+			if (logic != null && logic.Items.Count > 0)
+				ItemList = logic.Items;
+
+			Networking.SendToPlayer(this, SenderId);
 		}
 
 		public override void Received(ref bool relay)
@@ -42,12 +59,31 @@ namespace Dematerializer.Sync
 			if (logic == null)
 				return;
 
-			logic.Blacklist = Blacklist;
+			if (!MyAPIGateway.Multiplayer.IsServer)
+			{
+				logic.Items = ItemList;
+				if (logic.SelectedGrid != null)
+				{
+					logic.DematerializeGrid(logic.SelectedGrid);
+					logic.DematerializeFX(logic.SelectedGrid as MyCubeGrid);
+				}
+
+				DematerializerSession.Instance.UpdateTerminal();
+				return;
+			}
+
+			if (Blacklist.Count > 0)
+				logic.Blacklist = Blacklist;
+
 			if (TargetId != 0)
 			{
-				logic.Settings.Error = "";
-				logic.Settings.SelectedGrid = TargetId;
-				logic.SyncServer(TargetId);
+				List<MyObjectBuilder_InventoryItem> list = logic.SyncServer(TargetId);
+				block.RefreshCustomInfo();
+				SendItemsReply(list);
+			}
+			else
+			{
+				logic.CancelOperation();
 			}
 
 			relay = false;
