@@ -187,6 +187,8 @@ namespace Dematerializer
 			DSession.BlacklistButton = blacklistButton;
 			DSession.WhitelistButton = whitelistButton;
 			DSession.CancelButton = cancelButton;
+
+			_TerminalInit = true;
 		}
 
 		private static string AddToBlacklist;

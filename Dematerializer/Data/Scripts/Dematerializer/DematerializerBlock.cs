@@ -162,13 +162,23 @@ namespace Dematerializer
 		{
 			if (!MyAPIGateway.Utilities.IsDedicated && !TerminalControlsInit._TerminalInit)
 			{
-				TerminalControlsInit._TerminalInit = true;
-				TerminalControlsInit.InitControls<IMyShipGrinder>();
+				try
+				{
+					TerminalControlsInit.InitControls<IMyShipGrinder>();
+				}
+				catch
+				{
+					NeedsUpdate = MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
+				}
+				return;
 			}
 
 			dematerializer = Entity as IMyShipGrinder;
 			if (dematerializer == null || dematerializer.CubeGrid?.Physics == null) // ignore projected and other non-physical grids
+			{
+				NeedsUpdate = MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
 				return;
+			}
 
 			name = ((MyCubeBlockDefinition)dematerializer.SlimBlock.BlockDefinition).BlockPairName;
 
