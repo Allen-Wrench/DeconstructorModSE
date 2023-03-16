@@ -2,7 +2,9 @@
 using Sandbox.Common.ObjectBuilders;
 using Sandbox.Definitions;
 using Sandbox.Engine.Platform;
+using Sandbox.Game.Components;
 using Sandbox.Game.Entities;
+using Sandbox.Game.Entities.Cube;
 using Sandbox.Game.EntityComponents;
 using Sandbox.Game.Multiplayer;
 using Sandbox.ModAPI;
@@ -35,6 +37,8 @@ namespace Dematerializer
 		private DematerializerSession Mod => DematerializerSession.Instance;
 		public ModSettings ModSettings => Mod.ModSettings;
 
+		private bool initialized = false;
+
 		private IMyCubeGrid selectedGrid;
 		private MySync<long, SyncDirection.BothWays> clientSelected;
 		private MySync<long, SyncDirection.FromServer> gridId;
@@ -42,6 +46,7 @@ namespace Dematerializer
 		private MySync<bool, SyncDirection.BothWays> update;
 		private MySync<long, SyncDirection.FromServer> time;
 		private MySync<long, SyncDirection.FromServer> timeStarted;
+		private MySync<int, SyncDirection.BothWays> status;
 
 		private List<string> blacklist = new List<string>();
 
@@ -56,7 +61,7 @@ namespace Dematerializer
 			set
 			{
 				selectedGrid = value;
-				if (!MyAPIGateway.Multiplayer.IsServer)
+				if (!MyAPIGateway.Utilities.IsDedicated)
 				{
 					if (selectedGrid == null)
 					{
@@ -64,7 +69,7 @@ namespace Dematerializer
 						//gridId.SetLocalValue(0);
 						time.SetLocalValue(0);
 						timeStarted.SetLocalValue(0);
-					} 
+					}
 					else if (selectedGrid.EntityId != GridId)
 					{
 						clientSelected.Value = selectedGrid.EntityId;
@@ -127,24 +132,45 @@ namespace Dematerializer
 			{
 				if (blacklist == null)
 					blacklist = new List<string>();
-				return blacklist;
+
+				if (MyAPIGateway.Utilities.IsDedicated)
+					return blacklist;
+				else
+					return Mod.ClientSettings.BlacklistedItems;
 			}
 			set
 			{
 				if (value == null)
 					blacklist = new List<string>();
-				blacklist = value;
+
+				if (MyAPIGateway.Utilities.IsDedicated)
+					blacklist = value;
+				else
+				{
+					Mod.ClientSettings.BlacklistedItems = value;
+					Mod.ClientSettings.Save();
+				}
 			}
 		}
-		public Status StatusInfo { get; set; }
-
+		public Status StatusInfo
+		{
+			get
+			{
+				return (Status)status.Value;
+			}
+			set
+			{
+				if (MyAPIGateway.Multiplayer.IsServer)
+					status.Value = (int)value;
+				dematerializer?.RefreshCustomInfo();
+			}
+		}
 
 		private static MyDefinitionId ElectricId => MyResourceDistributorComponent.ElectricityId;
-		public static Dictionary<string, TierSettings> Tiers = new Dictionary<string, TierSettings>();
 		private string name;
-		public float Range => Tiers?[name].Range ?? 500;
-		public float Power => Tiers?[name].Power ?? 1000;
-		public float Efficiency => Tiers?[name].Efficiency ?? 75;
+		public float Range { get; private set; } = 500;
+		public float Power { get; private set; } = 1000;
+		public float Efficiency { get; private set; } = 75;
 
 		public readonly Guid SETTINGS_GUID = new Guid("1EAB58EE-7304-45D2-B3C8-9BA2DC31EF90");
 		//public BlockSettings Settings = new BlockSettings();
@@ -158,8 +184,21 @@ namespace Dematerializer
 		private int repeat = 1;
 		private int iteration = 0;
 
-		public override void UpdateOnceBeforeFrame()
+		private void InitializeBlock()
 		{
+			dematerializer = Entity as IMyShipGrinder;
+			if (dematerializer == null || dematerializer.CubeGrid?.Physics == null) // ignore projected and other non-physical grids
+			{
+				initialized = false;
+				return;
+			}
+
+			if (!UpdateModSettings())
+			{
+				initialized = false;
+				return;
+			}
+
 			if (!MyAPIGateway.Utilities.IsDedicated && !TerminalControlsInit._TerminalInit)
 			{
 				try
@@ -168,19 +207,10 @@ namespace Dematerializer
 				}
 				catch
 				{
-					NeedsUpdate = MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
+					initialized = false;
 				}
 				return;
 			}
-
-			dematerializer = Entity as IMyShipGrinder;
-			if (dematerializer == null || dematerializer.CubeGrid?.Physics == null) // ignore projected and other non-physical grids
-			{
-				NeedsUpdate = MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
-				return;
-			}
-
-			name = ((MyCubeBlockDefinition)dematerializer.SlimBlock.BlockDefinition).BlockPairName;
 
 			MyInventory = dematerializer.GetInventory();
 
@@ -189,25 +219,56 @@ namespace Dematerializer
 			sink.SetMaxRequiredInputByType(ElectricId, Power);
 			//sink.SetRequiredInputFuncByType(ElectricId, PowerRequiredFunc);
 
-			dematerializer.AppendingCustomInfo += AddCustomInfo;
 
 			NeedsUpdate = MyEntityUpdateEnum.EACH_100TH_FRAME;
 
-			if (!MyAPIGateway.Utilities.IsDedicated)
-			{
-				Blacklist = Mod.ClientSettings.BlacklistedItems;
-				update.ValueChanged += Update;
-			}
-
+			dematerializer.AppendingCustomInfo += AddCustomInfo;
 			gridId.ValueChanged += GridIdChanged;
 			isGrinding.ValueChanged += IsGrindingChanged;
+			status.ValueChanged += StatusUpdated;
 
 			if (MyAPIGateway.Multiplayer.IsServer)
 			{
 				clientSelected.ValueChanged += ClientSelected_ValueChanged;
 				LoadSettings();
-				SaveSettings(true);
+				SaveSettings();
 			}
+			initialized = true;
+		}
+
+		public bool UpdateModSettings()
+		{
+			name = ((MyCubeBlockDefinition)dematerializer.SlimBlock.BlockDefinition).BlockPairName;
+			if (Mod.ModSettings != null && !string.IsNullOrEmpty(name))
+			{
+				switch (name)
+				{
+					case "Dematerializer_1":
+						Range = Mod.ModSettings.Tier1.Range;
+						Power = Mod.ModSettings.Tier1.Power;
+						Efficiency = Mod.ModSettings.Tier1.Efficiency;
+						break;
+					case "Dematerializer_2":
+						Range = Mod.ModSettings.Tier2.Range;
+						Power = Mod.ModSettings.Tier2.Power;
+						Efficiency = Mod.ModSettings.Tier2.Efficiency;
+						break;
+					case "Dematerializer_3":
+						Range = Mod.ModSettings.Tier3.Range;
+						Power = Mod.ModSettings.Tier3.Power;
+						Efficiency = Mod.ModSettings.Tier3.Efficiency;
+						break;
+					case "Dematerializer_4":
+						Range = Mod.ModSettings.Tier4.Range;
+						Power = Mod.ModSettings.Tier4.Power;
+						Efficiency = Mod.ModSettings.Tier4.Efficiency;
+						break;
+					default:
+						return false;
+				}
+				return true;
+			}
+			return false;
 		}
 
 		private void ClientSelected_ValueChanged(MySync<long, SyncDirection.BothWays> sync)
@@ -221,7 +282,7 @@ namespace Dematerializer
 			{
 				selectedGrid = MyAPIGateway.Entities.GetEntityById(sync.Value) as IMyCubeGrid;
 			}
-			update.Value = true;
+			StatusInfo &= ~(Status.Cancelled | Status.Complete);
 		}
 
 		private void IsGrindingChanged(MySync<bool, SyncDirection.FromServer> sync)
@@ -239,11 +300,31 @@ namespace Dematerializer
 				selectedGrid = MyAPIGateway.Entities.GetEntityById(sync.Value) as IMyCubeGrid;
 		}
 
-		private void Update(MySync<bool, SyncDirection.BothWays> sync)
+		private void StatusUpdated(MySync<int, SyncDirection.BothWays> sync)
 		{
-			update.SetLocalValue(false);
 			dematerializer.RefreshCustomInfo();
 			Mod.UpdateTerminal();
+		}
+
+		private void CheckStatus()
+		{
+			if (MyAPIGateway.Multiplayer.IsServer)
+			{
+				if (dematerializer.Enabled && !IsGrinding)
+					StatusInfo |= Status.Idle;
+				else
+					StatusInfo &= ~Status.Idle;
+
+				if (!dematerializer.Enabled)
+					StatusInfo |= Status.PoweredOff;
+				else
+					StatusInfo &= ~Status.PoweredOff;
+
+				if (IsGrinding && StatusInfo == Status.None)
+					StatusInfo |= Status.Working;
+				else if (StatusInfo != Status.Working)
+					StatusInfo &= ~Status.Working;
+			}
 		}
 
 		public void DematerializeFX(MyCubeGrid grid)
@@ -265,38 +346,80 @@ namespace Dematerializer
 				iteration = 0;
 
 				Dissasemble = Decon(grid);
+				Dissasemble.MoveNext();
 				NeedsUpdate |= MyEntityUpdateEnum.EACH_FRAME;
 			}
 		}
 
 		private IEnumerator<int> Decon(IMyCubeGrid grid)
 		{
-			if (grid == null) yield break;
+			if (grid == null || grid.MarkedForClose) yield break;
 			List<IMySlimBlock> blocks = new List<IMySlimBlock>();
 			grid.GetBlocks(blocks);
+			foreach (IMySlimBlock block in blocks)
+			{
+				MyCubeBlock b = block.FatBlock as MyCubeBlock;
+				if (b != null && b.UseObjectsComponent != null && b.UseObjectsComponent.DetectorPhysics != null)
+				{
+					b.UseObjectsComponent.DetectorPhysics.Enabled = false;
+				}
+			}
 			for (int i = blocks.Count - 1; i >= 0; i--)
 			{
 				if (grid == null || grid.MarkedForClose || grid.Closed) yield break;
 				if (blocks[i] == null) continue;
 				blocks[i].PlayConstructionSound(MyIntegrityChangeEnum.DeconstructionProcess, true);
-				blocks[i].Dithering = 1f;
+				SetTransparency(blocks[i], 1f);
 				if (i % repeat == 0)
 					yield return i;
 			}
 		}
 
-		private IEnumerator<int> CancelDecon(IMyCubeGrid grid)
+		//private IEnumerator<int> CancelDecon(IMyCubeGrid grid)
+		//{
+		//	if (grid == null || grid.MarkedForClose) yield break;
+		//	List<IMySlimBlock> blocks = new List<IMySlimBlock>();
+		//	grid.GetBlocks(blocks);
+		//	for (int i = blocks.Count - 1; i >= 0; i--)
+		//	{
+		//		if (grid == null || grid.MarkedForClose || grid.Closed) yield break;
+		//		if (blocks[i] == null) continue;
+		//		SetTransparency(blocks[i], 0f);
+		//		if (i % 100 == 0)
+		//			yield return 2;
+		//	}
+		//}
+
+		private void SetTransparency(IMySlimBlock cubeBlock, float transparency)
 		{
-			if (grid == null) yield break;
-			List<IMySlimBlock> blocks = new List<IMySlimBlock>();
-			grid.GetBlocks(blocks);
-			for (int i = blocks.Count - 1; i >= 0; i--)
+			transparency = -transparency;
+			if (cubeBlock.Dithering == transparency && cubeBlock.CubeGrid.Render.Transparency == transparency)
 			{
-				if (grid == null || grid.MarkedForClose || grid.Closed) yield break;
-				if (blocks[i] == null) continue;
-				blocks[i].Dithering = 0f;
-				if (i % 10 == 0)
-					yield return i;
+				return;
+			}
+			cubeBlock.Dithering = transparency;
+			cubeBlock.UpdateVisual();
+			MyCubeBlock fatBlock = cubeBlock.FatBlock as MyCubeBlock;
+			if (fatBlock != null)
+			{
+				fatBlock.Render.CastShadows = transparency == 0f ? true : false;
+				SetTransparencyForSubparts(fatBlock, transparency);
+			}
+		}
+
+		private void SetTransparencyForSubparts(MyEntity renderEntity, float transparency)
+		{
+			if (renderEntity.Subparts == null)
+			{
+				return;
+			}
+			foreach (MyEntitySubpart subPart in renderEntity.Subparts.Values)
+			{
+				subPart.Render.Transparency = transparency;
+				subPart.Render.CastShadows = transparency == 0f ? true : false;
+				subPart.Render.RemoveRenderObjects();
+				subPart.Render.AddRenderObjects();
+				SetTransparencyForSubparts(subPart, transparency);
 			}
 		}
 
@@ -305,8 +428,7 @@ namespace Dematerializer
 			if (!MyAPIGateway.Multiplayer.IsServer)
 				return Items;
 
-			StatusInfo &= ~Status.Cancelled;
-			StatusInfo &= ~Status.Complete;
+			StatusInfo &= ~(Status.Cancelled | Status.Complete);
 
 			IMyEntity entity;
 			MyAPIGateway.Entities.TryGetEntityById(cubeGridId, out entity);
@@ -332,7 +454,7 @@ namespace Dematerializer
 				};
 
 				target.Storage.SetValue(SETTINGS_GUID, Convert.ToBase64String(MyAPIGateway.Utilities.SerializeToBinary(tag)));
-				target.OnClose += GridClosed;
+				target.OnMarkForClose += GridMarkedClosed;
 
 				Logger.BeginGrinding(this);
 			}
@@ -373,16 +495,25 @@ namespace Dematerializer
 			grid.Immune = true;
 			grid.Editable = false;
 			grid.IsPreview = true;
+			foreach (MyCubeBlock fatBlock in grid.GetFatBlocks().ToList())
+			{
+				if (fatBlock != null && fatBlock.UseObjectsComponent != null && fatBlock.UseObjectsComponent.DetectorPhysics != null)
+				{
+					fatBlock.UseObjectsComponent.DetectorPhysics.Enabled = false;
+				}
+			}
 		}
 
 		public void GetGrindTime(IMyCubeGrid grid, bool calcEff = true)
 		{
 			time.Value = Utils.GetGrindTime(this, ref grid).Ticks;
+			dematerializer.RefreshCustomInfo();
+			Mod.UpdateTerminal();
 		}
 
 		public override void Init(MyObjectBuilder_EntityBase objectBuilder)
 		{
-			NeedsUpdate = MyEntityUpdateEnum.BEFORE_NEXT_FRAME;
+			NeedsUpdate = MyEntityUpdateEnum.EACH_10TH_FRAME;
 		}
 
 		private void RequiredInputChanged(MyDefinitionId resourceTypeId, MyResourceSinkComponent receiver, float oldRequirement, float newRequirement)
@@ -393,63 +524,41 @@ namespace Dematerializer
 			Mod.UpdateTerminal();
 		}
 
-		public string CurrentStatus(Status flag)
+		public StringBuilder CurrentStatus(Status flag)
 		{
-			switch (flag)
-			{
-				case Status.None:
-					return "";
-				case Status.Idle:
-					return "Idle";
-				case Status.Working:
-					return "Dematerializing";
-				case Status.Paused:
-					return "Paused";
-				case Status.PoweredOff:
-					return "Block is powered off";
-				case Status.NoPower:
-					return "Insufficient power";
-				case Status.OutOfRange:
-					return "Target is out of range";
-				case Status.NoCargoSpace:
-					return "Waiting for availabe inventory space";
-				case Status.TransferringCargo:
-					return "Transferring items into inventory";
-				case Status.Cancelled:
-					return "Operation cancelled";
-				case Status.Complete:
-					return "Processing completed";
-				default:
-					return "";
-			}
+			StringBuilder sb = new StringBuilder();
+			if (flag.HasFlag(Status.Idle))
+				sb.AppendLine("Idle");
+			if (flag.HasFlag(Status.Working))
+				sb.AppendLine("Dematerializing");
+			if (flag.HasFlag(Status.Paused))
+				sb.AppendLine("Paused");
+			if (flag.HasFlag(Status.PoweredOff))
+				sb.AppendLine("Block is powered off");
+			if (flag.HasFlag(Status.NoPower))
+				sb.AppendLine("Insufficient power");
+			if (flag.HasFlag(Status.OutOfRange))
+				sb.AppendLine("Target is out of range");
+			if (flag.HasFlag(Status.NoCargoSpace))
+				sb.AppendLine("Waiting for availabe inventory space");
+			if (flag.HasFlag(Status.TransferringCargo))
+				sb.AppendLine("Transferring items into inventory");
+			if (flag.HasFlag(Status.Cancelled))
+				sb.AppendLine("Operation cancelled");
+			if (flag.HasFlag(Status.Complete))
+				sb.AppendLine("Processing completed");
+			if (flag.HasFlag(Status.GridNotStatic))
+				sb.AppendLine("This block will only work on station grids.");
+			return sb;
 		}
 
 		private void AddCustomInfo(IMyTerminalBlock block, StringBuilder info)
 		{
-			if (dematerializer.Enabled && !IsGrinding)
-				StatusInfo |= Status.Idle;
-			else
-				StatusInfo &= ~Status.Idle;
-
-			if (!dematerializer.Enabled)
-				StatusInfo |= Status.PoweredOff;
-			else
-				StatusInfo &= ~Status.PoweredOff;
-
-			if (IsGrinding && StatusInfo == Status.None)
-				StatusInfo |= Status.Working;
-			else if (StatusInfo != Status.Working)
-				StatusInfo &= ~Status.Working;
-
 			float requiredPower = sink.RequiredInputByType(ElectricId);
 			info.Append($"Power Required: {requiredPower:N0}Mw\n");
 
 			info.Append("Status: ");
-			foreach (Status flag in Enum.GetValues(typeof(Status)).Cast<Status>())
-			{
-				if (flag != Status.None && StatusInfo.HasFlag(flag))
-					info.Append($"{CurrentStatus(flag)}\n");
-			}
+			info.Append(CurrentStatus(StatusInfo));
 		}
 
 		// Saving
@@ -492,7 +601,7 @@ namespace Dematerializer
 			return false;
 		}
 
-		public void SaveSettings(bool sync = false)
+		public void SaveSettings()
 		{
 			if (!MyAPIGateway.Multiplayer.IsServer) return;
 
@@ -539,7 +648,7 @@ namespace Dematerializer
 
 		public override void UpdateBeforeSimulation()
 		{
-			if (MyAPIGateway.Utilities.IsDedicated || !dematerializer.IsFunctional || !dematerializer.IsWorking || !dematerializer.Enabled) return;
+			if (MyAPIGateway.Utilities.IsDedicated || !initialized || !dematerializer.IsFunctional || !dematerializer.IsWorking || !dematerializer.Enabled) return;
 			if (Dissasemble == null)
 			{
 				NeedsUpdate &= ~MyEntityUpdateEnum.EACH_FRAME;
@@ -561,10 +670,38 @@ namespace Dematerializer
 			}
 		}
 
+		public override void UpdateBeforeSimulation10()
+		{
+			InitializeBlock();
+			if (initialized)
+			{
+				NeedsUpdate = MyEntityUpdateEnum.EACH_100TH_FRAME;
+				return;
+			}
+		}
+
 		public override void UpdateAfterSimulation100()
 		{
-			dematerializer.RefreshCustomInfo();
-			Mod.UpdateTerminal();
+			if (!initialized) return;
+			CheckStatus();
+
+			if (MyAPIGateway.Multiplayer.IsServer && !dematerializer.CubeGrid.IsStatic)
+			{
+				if (IsGrinding && SelectedGrid != null)
+				{
+					CancelOperation();
+					dematerializer.Enabled = false;
+				}
+				StatusInfo |= Status.GridNotStatic;
+				return;
+			}
+			else if (MyAPIGateway.Multiplayer.IsServer && dematerializer.CubeGrid.IsStatic && (StatusInfo & Status.GridNotStatic) == Status.GridNotStatic)
+			{
+				StatusInfo &= ~Status.GridNotStatic;
+			}
+
+			//dematerializer.RefreshCustomInfo();
+			//Mod.UpdateTerminal();
 
 			if (dematerializer.IsFunctional && dematerializer.IsWorking && dematerializer.Enabled && !StatusInfo.HasFlag(Status.Cancelled))
 			{
@@ -574,78 +711,92 @@ namespace Dematerializer
 						DematerializeFX(SelectedGrid as MyCubeGrid);
 				}
 
-				if (!MyAPIGateway.Multiplayer.IsServer) return;
-				StatusInfo &= ~Status.NoPower;
-				StatusInfo &= ~Status.OutOfRange;
-
-				if (IsGrinding && SelectedGrid != null)
+				if (MyAPIGateway.Multiplayer.IsServer)
 				{
-					if (!sink.IsPowerAvailable(ElectricId, Power))
+					if (!IsGrinding && SelectedGrid != null)
 					{
-						dematerializer.Enabled = false;
-						StatusInfo |= Status.NoPower;
-						return;
-					}
-
-					if (Vector3D.Distance(SelectedGrid.GetPosition(), dematerializer.GetPosition()) > Range)
-					{
-						dematerializer.Enabled = false;
-						StatusInfo |= Status.OutOfRange;
-						return;
-					}
-
-					if (StatusInfo.HasFlag(Status.Paused))
-					{
-						timeStarted.Value = DateTime.UtcNow.ToBinary();
-						StatusInfo &= ~Status.Paused;
-					}
-				}
-
-				if (IsGrinding && (Time - (DateTime.UtcNow - TimeStarted)) <= TimeSpan.Zero)
-				{
-					if (SelectedGrid != null)
-					{
-						for (int i = Items.Count - 1; i >= 0; i--)
+						if (StatusInfo.HasFlag(Status.NoPower) && sink.IsPowerAvailable(ElectricId, Power))
 						{
-							if (Blacklist.Count > 0 && Blacklist.Contains(Items[i].PhysicalContent?.SubtypeName ?? Items[i].SubtypeName))
-								Items.RemoveAtFast(i);
+							StatusInfo &= ~Status.NoPower;
+							isGrinding.Value = true;
 						}
-						new PacketClient().SendProgressUpdate(dematerializer.EntityId, GridId, Items);
-						Logger.FinishGrinding(this);
-						Grids.Remove(SelectedGrid);
-						SelectedGrid.OnClose -= GridClosed;
-						SelectedGrid.Close();
-						gridId.Value = 0;
-						StatusInfo |= Status.TransferringCargo;
+						if (StatusInfo.HasFlag(Status.OutOfRange) && Vector3D.Distance(SelectedGrid.GetPosition(), dematerializer.GetPosition()) <= Range)
+						{
+							StatusInfo &= ~Status.OutOfRange;
+							isGrinding.Value = true;
+						}
 					}
 
-					if (Items != null && Items.Count > 0)
+					if (IsGrinding && SelectedGrid != null)
 					{
-						bool result = !Utils.SpawnItems(MyInventory, ref Items);
-						if (Items.Count > 0)
+						if (!sink.IsPowerAvailable(ElectricId, Power))
 						{
-							if (!result)
-								StatusInfo |= Status.NoCargoSpace;
-							else if (result)
-								StatusInfo &= ~Status.NoCargoSpace;
-
-							new PacketClient().SendProgressUpdate(dematerializer.EntityId, 0, Items);
-							dematerializer.RefreshCustomInfo();
-							update.Value = true;
-
+							isGrinding.Value = false;
+							time.Value = (Time - (DateTime.UtcNow - TimeStarted)).Ticks;
+							timeStarted.Value = 0;
+							StatusInfo |= Status.NoPower;
 							return;
 						}
+
+						if (Vector3D.Distance(SelectedGrid.GetPosition(), dematerializer.GetPosition()) > Range)
+						{
+							isGrinding.Value = false;
+							time.Value = (Time - (DateTime.UtcNow - TimeStarted)).Ticks;
+							timeStarted.Value = 0;
+							StatusInfo |= Status.OutOfRange;
+							return;
+						}
+
+						if (StatusInfo.HasFlag(Status.Paused))
+						{
+							timeStarted.Value = DateTime.UtcNow.ToBinary();
+							StatusInfo &= ~Status.Paused;
+						}
 					}
 
-					new PacketClient().SendProgressUpdate(dematerializer.EntityId, 0, null);
-					StatusInfo = Status.Complete;
-					time.Value = 0;
-					timeStarted.Value = 0;
-					isGrinding.Value = false;
-				}
+					if (IsGrinding && (Time - (DateTime.UtcNow - TimeStarted)) <= TimeSpan.Zero)
+					{
+						if (SelectedGrid != null)
+						{
+							for (int i = Items.Count - 1; i >= 0; i--)
+							{
+								if (Blacklist.Count > 0 && Blacklist.Contains(Items[i].PhysicalContent?.SubtypeName ?? Items[i].SubtypeName))
+									Items.RemoveAtFast(i);
+							}
+							new PacketClient().SendProgressUpdate(dematerializer.EntityId, GridId, Items);
+							Logger.FinishGrinding(this);
+							Grids.Remove(SelectedGrid);
+							SelectedGrid.OnMarkForClose -= GridMarkedClosed;
+							SelectedGrid.Close();
+							gridId.Value = 0;
+							StatusInfo |= Status.TransferringCargo;
+						}
 
+						if (Items != null && Items.Count > 0)
+						{
+							bool result = !Utils.SpawnItems(MyInventory, ref Items);
+							if (Items.Count > 0)
+							{
+								if (!result)
+									StatusInfo |= Status.NoCargoSpace;
+								else if (result)
+									StatusInfo &= ~Status.NoCargoSpace;
+
+								new PacketClient().SendProgressUpdate(dematerializer.EntityId, 0, Items);
+
+								return;
+							}
+						}
+
+						new PacketClient().SendProgressUpdate(dematerializer.EntityId, 0, null);
+						StatusInfo = Status.Complete;
+						time.Value = 0;
+						timeStarted.Value = 0;
+						isGrinding.Value = false;
+					}
+				}
 				dematerializer.RefreshCustomInfo();
-				update.Value = true;
+				Mod.UpdateTerminal();
 				return;
 			}
 			else if (IsGrinding && TimeStarted != DateTime.MinValue && MyAPIGateway.Multiplayer.IsServer)
@@ -655,27 +806,37 @@ namespace Dematerializer
 				//isGrinding.Value = false;
 				dematerializer.Enabled = false;
 				StatusInfo |= Status.Paused;
-				dematerializer.RefreshCustomInfo();
-				update.Value = true;
+			}
+			dematerializer.RefreshCustomInfo();
+			Mod.UpdateTerminal();
+		}
+
+
+		public override void MarkForClose()
+		{
+			if (SelectedGrid != null)
+			{
+				CancelOperation();
 			}
 		}
 
 		public override void Close()
 		{
-			dematerializer.AppendingCustomInfo -= AddCustomInfo;
+			if (dematerializer != null)
+				dematerializer.AppendingCustomInfo -= AddCustomInfo;
 		}
 
-		public void GridClosed(IMyEntity entity)
+		public void GridMarkedClosed(IMyEntity entity)
 		{
 			IMyCubeGrid grid = entity as IMyCubeGrid;
-			if (grid != null && grid.EntityId == GridId)
+			if (grid != null && grid.EntityId == GridId && IsGrinding && (Time - (DateTime.UtcNow - TimeStarted)) > TimeSpan.Zero)
 			{
-				MyAPIGateway.Entities.OnEntityAdd += Mod.CheckForTag;
-				time.Value = (Time - (DateTime.UtcNow - TimeStarted)).Ticks;
-				timeStarted.Value = DateTime.MinValue.ToBinary();
-				isGrinding.Value = false;
-				gridId.Value = 0;
-				update.Value = true;
+				CancelOperation();
+				//time.Value = (Time - (DateTime.UtcNow - TimeStarted)).Ticks;
+				//timeStarted.Value = 0;
+				//isGrinding.Value = false;
+				//gridId.Value = 0;
+				//update.Value = true;
 			}
 		}
 
@@ -688,10 +849,11 @@ namespace Dematerializer
 
 		public void CancelOperation()
 		{
-			if (SelectedGrid != null && Time != TimeSpan.Zero)
+			if (SelectedGrid != null)
 			{
 				if (!MyAPIGateway.Utilities.IsDedicated)
 				{
+					MyAPIGateway.Utilities.ShowNotification("Dematerializing has been canceled.", 5000, "Red");
 					if (Dissasemble != null)
 					{
 						Dissasemble.Dispose();
@@ -699,50 +861,64 @@ namespace Dematerializer
 					}
 					List<IMySlimBlock> blocks = new List<IMySlimBlock>();
 					SelectedGrid.GetBlocks(blocks);
-					for (int i = blocks.Count - 1; i >= 0; i--)
+					foreach (IMySlimBlock block in blocks)
 					{
-						if (blocks[i] == null) continue;
-						blocks[i].Dithering = 0f;
+						MyCubeBlock b = block.FatBlock as MyCubeBlock;
+						if (b != null) continue;
+						if (b.UseObjectsComponent != null && b.UseObjectsComponent.DetectorPhysics != null)
+						{
+							b.UseObjectsComponent.DetectorPhysics.Enabled = true;
+						}
+						SetTransparency(block, 0f);
 					}
-					SelectedGrid.Render.SetVisibilityUpdates(true);
+					SelectedGrid.Render.Transparency = 0f;
+					SelectedGrid.Render.CastShadows = true;
 					SelectedGrid.Render.UpdateTransparency();
+					SelectedGrid.Render.RemoveRenderObjects();
+					SelectedGrid.Render.AddRenderObjects();
 				}
 				MyCubeGrid grid = SelectedGrid as MyCubeGrid;
-				grid.Immune = false;
-				grid.Editable = true;
-				grid.IsPreview = false;
-				SelectedGrid.Physics.IsPhantom = false;
+				if (grid != null)
+				{
+					grid.Immune = false;
+					grid.Editable = true;
+					grid.IsPreview = false;
+					if (SelectedGrid.Physics != null)
+						SelectedGrid.Physics.IsPhantom = false;
+				}
 
 				if (MyAPIGateway.Multiplayer.IsServer)
 				{
 					Logger.CancelGrinding(this);
 					StatusInfo |= Status.Cancelled;
-					SelectedGrid.OnClose -= GridClosed;
+					SelectedGrid.OnClose -= GridMarkedClosed;
 					gridId.Value = 0;
 					isGrinding.Value = false;
 					time.Value = 0;
-					timeStarted.Value = DateTime.MinValue.ToBinary();
-					update.Value = true;
+					timeStarted.Value = 0;
 				}
 
 				Items.Clear();
+				dematerializer.RefreshCustomInfo();
+				Mod.UpdateTerminal();
 			}
 		}
+	}
 
-		[Flags]
-		public enum Status
-		{
-			None = 0,
-			Idle = 1,
-			Working = 2,
-			Paused = 4,
-			PoweredOff = 8,
-			NoPower = 16,
-			OutOfRange = 32,
-			NoCargoSpace = 64,
-			TransferringCargo = 128,
-			Complete = 256,
-			Cancelled = 512
-		}
+	[Flags]
+	public enum Status
+	{
+		None = 0,
+		Idle = 1,
+		Working = 2,
+		Paused = 4,
+		PoweredOff = 8,
+		NoPower = 16,
+		OutOfRange = 32,
+		NoCargoSpace = 64,
+		TransferringCargo = 128,
+		Complete = 256,
+		Cancelled = 512,
+		GridNotStatic = 1024
 	}
 }

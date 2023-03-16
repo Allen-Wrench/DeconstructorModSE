@@ -14,16 +14,16 @@ namespace Dematerializer
 	public class ModSettings
 	{
 		[ProtoMember(1)]
-		public TierSettings Tier1 = new TierSettings("Dematerializer_1", 500, 1000, 25);
+		public TierSettings Tier1 = new TierSettings("Dematerializer_1", 500, 1000, 75);
 
 		[ProtoMember(2)]
-		public TierSettings Tier2 = new TierSettings("Dematerializer_2", 1000, 2500, 50);
+		public TierSettings Tier2 = new TierSettings("Dematerializer_2", 1000, 2500, 82.5f);
 
 		[ProtoMember(3)]
-		public TierSettings Tier3 = new TierSettings("Dematerializer_3", 1500, 5000, 75);
+		public TierSettings Tier3 = new TierSettings("Dematerializer_3", 1500, 5000, 87.5f);
 
 		[ProtoMember(4)]
-		public TierSettings Tier4 = new TierSettings("Dematerializer_4", 2000, 10000, 90);
+		public TierSettings Tier4 = new TierSettings("Dematerializer_4", 2000, 10000, 95);
 		
 
 		public ModSettings() { }
@@ -53,7 +53,7 @@ namespace Dematerializer
 				PacketSettings p = new PacketSettings();
 				p.RequestModSettings();
 				MyLog.Default.Info("[Dematerializer Mod]: Requesting mod settings from server.");
-				return new ModSettings();
+				return null;
 			}
 
 			ModSettings settings = new ModSettings();
@@ -69,17 +69,11 @@ namespace Dematerializer
 				catch
 				{
 					MyLog.Default.Error("[Dematerializer Mod]: Error loading mod settings, using default values.");
-					settings = null;
+					settings = new ModSettings();
 				}
 			}
 
-			if (settings == null)
-				settings = new ModSettings();
-
-			DematerializerBlock.Tiers.Add(settings.Tier1.SubtypeName, settings.Tier1);
-			DematerializerBlock.Tiers.Add(settings.Tier2.SubtypeName, settings.Tier2);
-			DematerializerBlock.Tiers.Add(settings.Tier3.SubtypeName, settings.Tier3);
-			DematerializerBlock.Tiers.Add(settings.Tier4.SubtypeName, settings.Tier4);
+			Save(settings);
 			return settings;
 		}
 	}

@@ -1,4 +1,5 @@
 ﻿using Dematerializer.Sync;
+using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
 using Sandbox.ModAPI.Interfaces.Terminal;
 using System;
@@ -17,7 +18,7 @@ namespace Dematerializer
 		public static GridLog Logger;
 		public static DematerializerSession Instance;
 		public ModSettings ModSettings { get; private set; }
-		public ClientSettings ClientSettings { get; private set; }
+		public ClientSettings ClientSettings { get; private set; } = new ClientSettings();
 
 		public Networking Net = new Networking(57747);
 		public PacketServer CachedPacketServer;
@@ -44,17 +45,25 @@ namespace Dematerializer
 			if (!MyAPIGateway.Utilities.IsDedicated)
 			{
 				ClientSettings = ClientSettings.Load();
-				PacketSettings p = new PacketSettings();
-				p.RequestModSettings();
-				MyLog.Default.Info("[Dematerializer Mod]: Requesting mod settings from server.");
-			}
-			else
-			{
-				ClientSettings = new ClientSettings();
-				ModSettings = ModSettings.Load();
+				if (!MyAPIGateway.Multiplayer.IsServer)
+				{
+					Session.OnSessionReady += OnReady;
+				}
 			}
 			if (MyAPIGateway.Multiplayer.IsServer)
+			{
+				ModSettings = ModSettings.Load();
 				Logger = new GridLog();
+				MyAPIGateway.Entities.OnEntityAdd += CheckForTag;
+			}
+		}
+
+		private void OnReady()
+		{
+			Session.OnSessionReady -= OnReady;
+			PacketSettings p = new PacketSettings();
+			p.RequestModSettings();
+			MyLog.Default.Info("[Dematerializer Mod]: Requesting mod settings from server.");
 		}
 
 		public override void SaveData()
@@ -87,10 +96,6 @@ namespace Dematerializer
 		public void SettingsFromServer(ModSettings settings)
 		{
 			ModSettings = settings;
-			DematerializerBlock.Tiers.Add(ModSettings.Tier1.SubtypeName, ModSettings.Tier1);
-			DematerializerBlock.Tiers.Add(ModSettings.Tier2.SubtypeName, ModSettings.Tier2);
-			DematerializerBlock.Tiers.Add(ModSettings.Tier3.SubtypeName, ModSettings.Tier3);
-			DematerializerBlock.Tiers.Add(ModSettings.Tier4.SubtypeName, ModSettings.Tier4);
 			MyLog.Default.Info("[Dematerializer Mod] Recieved mod settings from server.");
 		}
 
@@ -113,38 +118,47 @@ namespace Dematerializer
 
 		public void CheckForTag(IMyEntity entity)
 		{
-			IMyCubeGrid grid = entity as IMyCubeGrid;
-			if (grid != null && grid.Storage != null)
+			MyCubeGrid grid = entity as MyCubeGrid;
+			if (grid != null && grid.Storage != null && grid.Physics != null)
 			{
-				string data;
-				if (grid.Storage.TryGetValue(SETTINGS_GUID, out data))
+				if (grid.Storage.ContainsKey(SETTINGS_GUID))
 				{
-					ProcessingTag tag = null;
-					try
-					{
-						tag = MyAPIGateway.Utilities.SerializeFromBinary<ProcessingTag>(Convert.FromBase64String(data));
-					}
-					catch
-					{
-						return;
-					}
-
-					if (tag == null) return;
-
-					IMyEntity ent;
-					if (MyAPIGateway.Entities.TryGetEntityById(tag.GrinderId, out ent) && ent is IMyShipGrinder)
-					{
-						var block = (ent as IMyShipGrinder).GameLogic as DematerializerBlock;
-						if (block != null)
-						{
-							block.ResumeProcessing(grid.EntityId);
-						}
-					}
-					else
-					{
-						grid.Close();
-					}
+					grid.Immune = false;
+					grid.Editable = true;
+					grid.IsPreview = false;
+					grid.Physics.IsPhantom = false;
+					grid.Storage.RemoveValue(SETTINGS_GUID);
 				}
+				//string data;
+				//if (grid.Storage.TryGetValue(SETTINGS_GUID, out data))
+				//{
+				//	ProcessingTag tag;
+				//	try
+				//	{
+				//		tag = MyAPIGateway.Utilities.SerializeFromBinary<ProcessingTag>(Convert.FromBase64String(data));
+				//	}
+				//	catch
+				//	{
+				//		tag = null;
+				//	}
+				//
+				//	IMyEntity ent;
+				//	if (tag != null && tag.GrinderId != 0 && MyAPIGateway.Entities.TryGetEntityById(tag.GrinderId, out ent) && ent is IMyShipGrinder)
+				//	{
+				//		var block = (ent as IMyShipGrinder).GameLogic as DematerializerBlock;
+				//		if (block != null && block.Time == tag.Time && block.TimeStarted == tag.TimeStarted)
+				//		{
+				//			block.ResumeProcessing(grid.EntityId);
+				//			return;
+				//		}
+				//	}
+				//
+				//	grid.Immune = false;
+				//	grid.Editable = true;
+				//	grid.IsPreview = false;
+				//	grid.Physics.IsPhantom = false;
+				//	grid.Close();
+				//}
 			}
 		}
 	}

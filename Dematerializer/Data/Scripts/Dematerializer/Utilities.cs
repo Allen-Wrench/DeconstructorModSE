@@ -158,7 +158,7 @@ namespace Dematerializer
 				}
 
 				grindTime = block.MaxIntegrity / integrity / DematerializerSession.Instance.Session.WelderSpeedMultiplier / (1f / grindRatio) / DematerializerSession.Instance.Session.GrinderSpeedMultiplier;
-				totalTime += grindTime * block.BuildLevelRatio * 0.25f;
+				totalTime += grindTime * block.BuildLevelRatio * 0.05f;
 			}
 
 			totalTime *= (100.0f - MyBlock.Efficiency) / 100.0f;

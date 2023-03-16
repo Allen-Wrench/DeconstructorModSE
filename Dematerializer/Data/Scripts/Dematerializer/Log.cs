@@ -7,7 +7,6 @@ using VRage.Game;
 using VRage.Game.ModAPI;
 using VRage.Utils;
 using System.Linq;
-using System.Threading.Tasks;
 using Sandbox.Game.Multiplayer;
 using Sandbox.Game.World;
 
@@ -58,30 +57,21 @@ namespace Dematerializer
 			Logger.Flush();
 		}
 
-		public void LogAsync(string message)
-		{
-			Task.Factory.StartNew(async () =>
-			{
-				await Logger.WriteLineAsync(message);
-				await Logger.FlushAsync();
-			});
-		}
-
 		public void BeginGrinding(DematerializerBlock instance)
 		{
-			Logger.WriteLine($"Started   @ {time} | TargetGridOwnerId:{instance.SelectedGrid.BigOwners.FirstOrDefault()} TargetGridName:{instance.SelectedGrid.CustomName} TargetGridEntityId:{instance.SelectedGrid.EntityId} BlockOwnerSteamId:{(instance.Entity as IMyShipGrinder).OwnerId} BlockGridName:{(instance.Entity.GetTopMostParent() as IMyCubeGrid).CustomName}");
+			Logger.WriteLine($"Started   @ {time} | TargetGridOwnerId:{instance.SelectedGrid.BigOwners.FirstOrDefault()} TargetGridName:{instance.SelectedGrid.CustomName} TargetGridEntityId:{instance.SelectedGrid.EntityId} | DematOwner:{(instance.Entity as IMyShipGrinder).OwnerId} DematGridName:{(instance.Entity.GetTopMostParent() as IMyCubeGrid).CustomName}");
 			Logger.Flush();
 		}
 
 		public void CancelGrinding(DematerializerBlock instance)
 		{
-			Logger.WriteLine($"Cancelled @ {time} | TargetGridOwnerId:{instance.SelectedGrid.BigOwners.FirstOrDefault()} TargetGridName:{instance.SelectedGrid.CustomName} TargetGridEntityId:{instance.SelectedGrid.EntityId} BlockOwner:{(instance.Entity as IMyShipGrinder).OwnerId} BlockGridName:{(instance.Entity.GetTopMostParent() as IMyCubeGrid).CustomName}");
+			Logger.WriteLine($"Cancelled @ {time} | TargetGridOwnerId:{instance.SelectedGrid.BigOwners.FirstOrDefault()} TargetGridName:{instance.SelectedGrid.CustomName} TargetGridEntityId:{instance.SelectedGrid.EntityId} | DematOwner:{(instance.Entity as IMyShipGrinder).OwnerId} DematGridName:{(instance.Entity.GetTopMostParent() as IMyCubeGrid).CustomName}");
 			Logger.Flush();
 		}
 
 		public void FinishGrinding(DematerializerBlock instance)
 		{
-			Logger.WriteLine($"Completed @ {time} | TargetGridOwnerId:{instance.SelectedGrid.BigOwners.FirstOrDefault()} TargetGridName:{instance.SelectedGrid.CustomName} TargetGridEntityId:{instance.SelectedGrid.EntityId} BlockOwner:{(instance.Entity as IMyShipGrinder).OwnerId} BlockGridName:{(instance.Entity.GetTopMostParent() as IMyCubeGrid).CustomName}");
+			Logger.WriteLine($"Completed @ {time} | TargetGridOwnerId:{instance.SelectedGrid.BigOwners.FirstOrDefault()} TargetGridName:{instance.SelectedGrid.CustomName} TargetGridEntityId:{instance.SelectedGrid.EntityId} | DematOwner:{(instance.Entity as IMyShipGrinder).OwnerId} DematGridName:{(instance.Entity.GetTopMostParent() as IMyCubeGrid).CustomName}");
 			
 			string items = "";
 			foreach (var item in instance.Items)

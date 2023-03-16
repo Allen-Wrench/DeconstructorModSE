@@ -18,11 +18,15 @@
       <UseModelIntersection>true</UseModelIntersection>
       <UsesDeformation>false</UsesDeformation>
       <Components>
-        <Component Subtype="SteelPlate" Count="15" />
-        <Component Subtype="Construction" Count="25" />
-        <Component Subtype="Computer" Count="8" />
-        <Component Subtype="Construction" Count="5" />
-        <Component Subtype="SteelPlate" Count="5" />
+        <Component Subtype="TritaniumPlate" Count="35" />
+        <Component Subtype="Tech2x" Count="100" />
+        <Component Subtype="Superconductor" Count="50" />
+        <Component Subtype="PowerCell" Count="40" />
+        <Component Subtype="IsolinearChip" Count="75" />
+        <Component Subtype="GravityGenerator" Count="20" />
+        <Component Subtype="Computer" Count="1000" />
+        <Component Subtype="Construction" Count="75" />
+        <Component Subtype="TritaniumPlate" Count="50" />
       </Components>
       <CriticalComponent Subtype="Computer" Index="0" />
       <BuildProgressModels>
@@ -54,7 +58,7 @@
       <MirroringZ>X</MirroringZ>
       <EdgeType>Light</EdgeType>
       <Public>true</Public>
-      <BuildTimeSeconds>24</BuildTimeSeconds>
+      <BuildTimeSeconds>120</BuildTimeSeconds>
       <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>
       <DamagedSound>ParticleHeavyMech</DamagedSound>
       <Flare></Flare>
@@ -81,11 +85,15 @@
       <UseModelIntersection>true</UseModelIntersection>
       <UsesDeformation>false</UsesDeformation>
       <Components>
-        <Component Subtype="SteelPlate" Count="15" />
-        <Component Subtype="Construction" Count="25" />
-        <Component Subtype="Computer" Count="8" />
-        <Component Subtype="Construction" Count="5" />
-        <Component Subtype="SteelPlate" Count="5" />
+        <Component Subtype="TritaniumPlate" Count="35" />
+        <Component Subtype="Tech4x" Count="500" />
+        <Component Subtype="Superconductor" Count="50" />
+        <Component Subtype="PowerCell" Count="40" />
+        <Component Subtype="IsolinearChip" Count="75" />
+        <Component Subtype="GravityGenerator" Count="20" />
+        <Component Subtype="Computer" Count="1000" />
+        <Component Subtype="Construction" Count="75" />
+        <Component Subtype="TritaniumPlate" Count="50" />
       </Components>
       <CriticalComponent Subtype="Computer" Index="0" />
       <BuildProgressModels>
@@ -117,7 +125,7 @@
       <MirroringZ>X</MirroringZ>
       <EdgeType>Light</EdgeType>
       <Public>true</Public>
-      <BuildTimeSeconds>24</BuildTimeSeconds>
+      <BuildTimeSeconds>120</BuildTimeSeconds>
       <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>
       <DamagedSound>ParticleHeavyMech</DamagedSound>
       <Flare></Flare>
@@ -143,12 +151,16 @@
       <Model>Models\Dematerializer\Dematerializer.mwm</Model>
       <UseModelIntersection>true</UseModelIntersection>
       <UsesDeformation>false</UsesDeformation>
-      <Components>
-        <Component Subtype="SteelPlate" Count="15" />
-        <Component Subtype="Construction" Count="25" />
-        <Component Subtype="Computer" Count="8" />
-        <Component Subtype="Construction" Count="5" />
-        <Component Subtype="SteelPlate" Count="5" />
+       <Components>
+        <Component Subtype="TritaniumPlate" Count="35" />
+        <Component Subtype="Tech8x" Count="700" />
+        <Component Subtype="Superconductor" Count="50" />
+        <Component Subtype="PowerCell" Count="40" />
+        <Component Subtype="IsolinearChip" Count="75" />
+        <Component Subtype="GravityGenerator" Count="20" />
+        <Component Subtype="Computer" Count="1000" />
+        <Component Subtype="Construction" Count="75" />
+        <Component Subtype="TritaniumPlate" Count="50" />
       </Components>
       <CriticalComponent Subtype="Computer" Index="0" />
       <BuildProgressModels>
@@ -180,7 +192,7 @@
       <MirroringZ>X</MirroringZ>
       <EdgeType>Light</EdgeType>
       <Public>true</Public>
-      <BuildTimeSeconds>24</BuildTimeSeconds>
+      <BuildTimeSeconds>120</BuildTimeSeconds>
       <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>
       <DamagedSound>ParticleHeavyMech</DamagedSound>
       <Flare></Flare>
@@ -206,12 +218,16 @@
       <Model>Models\Dematerializer\Dematerializer.mwm</Model>
       <UseModelIntersection>true</UseModelIntersection>
       <UsesDeformation>false</UsesDeformation>
-      <Components>
-        <Component Subtype="SteelPlate" Count="15" />
-        <Component Subtype="Construction" Count="25" />
-        <Component Subtype="Computer" Count="8" />
-        <Component Subtype="Construction" Count="5" />
-        <Component Subtype="SteelPlate" Count="5" />
+       <Components>
+        <Component Subtype="TritaniumPlate" Count="35" />
+        <Component Subtype="ContinuumTech" Count="25" />
+        <Component Subtype="Superconductor" Count="50" />
+        <Component Subtype="PowerCell" Count="40" />
+        <Component Subtype="IsolinearChip" Count="75" />
+        <Component Subtype="GravityGenerator" Count="20" />
+        <Component Subtype="Computer" Count="1000" />
+        <Component Subtype="Construction" Count="75" />
+        <Component Subtype="TritaniumPlate" Count="50" />
       </Components>
       <CriticalComponent Subtype="Computer" Index="0" />
       <BuildProgressModels>
@@ -243,7 +259,7 @@
       <MirroringZ>X</MirroringZ>
       <EdgeType>Light</EdgeType>
       <Public>true</Public>
-      <BuildTimeSeconds>24</BuildTimeSeconds>
+      <BuildTimeSeconds>120</BuildTimeSeconds>
       <DamageEffectName>Damage_HeavyMech_Damaged</DamageEffectName>
       <DamagedSound>ParticleHeavyMech</DamagedSound>
       <Flare></Flare>

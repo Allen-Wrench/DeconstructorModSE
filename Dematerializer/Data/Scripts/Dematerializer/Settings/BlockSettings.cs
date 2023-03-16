@@ -32,7 +32,7 @@ namespace Dematerializer
 		public List<string> Blacklist = new List<string>();
 
 		[ProtoMember(7)]
-		public long StatusEnum = (long)DematerializerBlock.Status.None;
+		public long StatusEnum = (long)Status.None;
 	}
 
 	[ProtoContract]

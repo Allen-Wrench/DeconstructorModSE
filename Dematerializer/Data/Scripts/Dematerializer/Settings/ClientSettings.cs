@@ -18,6 +18,8 @@ namespace Dematerializer
 		[ProtoMember(2)]
 		public List<string> BlacklistedItems = new List<string>();
 
+		public void Save() => Save(this);
+
 		public static void Save(ClientSettings settings)
 		{
 			if (MyAPIGateway.Utilities.IsDedicated) return;

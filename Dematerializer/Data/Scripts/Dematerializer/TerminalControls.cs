@@ -103,7 +103,7 @@ namespace Dematerializer
 			MyAPIGateway.TerminalControls.AddControl<T>(TimerBox);
 
 			var dematerializeButton = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, T>("Start");
-			dematerializeButton.Visible = StartButtonVisible;
+			dematerializeButton.Visible = EnabledCheck;
 			dematerializeButton.Enabled = SelectedEnabledCheck;
 			dematerializeButton.SupportsMultipleBlocks = false;
 			dematerializeButton.Title = MyStringId.GetOrCompute("Dematerialize");
@@ -139,11 +139,11 @@ namespace Dematerializer
 
 			var blacklistButton = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, T>("BlacklistButton");
 			blacklistButton.Visible = VisibilityCheck;
-			blacklistButton.Enabled = (IMyTerminalBlock block) => { return AddToBlacklist != null; };
+			blacklistButton.Enabled = BlacklistButtonEnabled;
 			blacklistButton.SupportsMultipleBlocks = false;
 			blacklistButton.Title = MyStringId.GetOrCompute("Blacklist Selected Item");
 			blacklistButton.Tooltip = MyStringId.GetOrCompute("Adds the selected item to the blacklist.");
-			blacklistButton.Action = Blacklist_clicked;
+			blacklistButton.Action = AddToBlacklistClicked;
 			MyAPIGateway.TerminalControls.AddControl<T>(blacklistButton);
 
 			var blackList = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlListbox, T>("Blacklist");
@@ -163,11 +163,11 @@ namespace Dematerializer
 
 			var whitelistButton = MyAPIGateway.TerminalControls.CreateControl<IMyTerminalControlButton, T>("WhitelistButton");
 			whitelistButton.Visible = VisibilityCheck;
-			whitelistButton.Enabled = (IMyTerminalBlock block) => { return RemoveFromBlacklist != null; };
+			whitelistButton.Enabled = WhitelistButtonEnabled;
 			whitelistButton.SupportsMultipleBlocks = false;
 			whitelistButton.Title = MyStringId.GetOrCompute("Whitelist Selected Item");
 			whitelistButton.Tooltip = MyStringId.GetOrCompute("Removes the selected item from the blacklist.");
-			whitelistButton.Action = Whitelist_clicked;
+			whitelistButton.Action = RemoveFromBlacklistClicked;
 			MyAPIGateway.TerminalControls.AddControl<T>(whitelistButton);
 
 
@@ -278,10 +278,16 @@ namespace Dematerializer
 			var system = GetBlock(block);
 			return system != null && system.IsGrinding;
 		}
-		private static bool StartButtonVisible(IMyTerminalBlock block)
+		private static bool BlacklistButtonEnabled(IMyTerminalBlock block)
 		{
 			var system = GetBlock(block);
-			return system != null && !system.IsGrinding;
+			return system != null && !system.IsGrinding && AddToBlacklist != null;
+		}
+
+		private static bool WhitelistButtonEnabled(IMyTerminalBlock block)
+		{
+			var system = GetBlock(block);
+			return system != null && !system.IsGrinding && RemoveFromBlacklist != null;
 		}
 
 		private static bool EnabledCheck(IMyTerminalBlock block)
@@ -293,7 +299,7 @@ namespace Dematerializer
 		private static bool SelectedEnabledCheck(IMyTerminalBlock block)
 		{
 			var system = GetBlock(block);
-			return system != null && !system.IsGrinding && system.SelectedGrid != null;
+			return system != null && !system.IsGrinding && system.SelectedGrid != null && (block as IMyFunctionalBlock).Enabled;
 		}
 
 		private static void SearchButton_action(IMyTerminalBlock block)
@@ -305,12 +311,13 @@ namespace Dematerializer
 			foreach (var entity in MyAPIGateway.Entities.GetTopMostEntitiesInSphere(ref sphere))
 			{
 				IMyCubeGrid grid = entity as IMyCubeGrid;
-				if (grid == null || 
+				if (grid == null ||
 					Vector3D.Distance(grid.GetPosition(), system.Entity.GetPosition()) > system.Range ||
-					grid.Physics == null || 
-					block.CubeGrid.IsSameConstructAs(grid) || 
-					(grid as MyCubeGrid).Immune || 
-					!(grid as MyCubeGrid).Editable || 
+					grid.Physics == null ||
+					block.CubeGrid.IsSameConstructAs(grid) ||
+					(grid as MyCubeGrid).Immune ||
+					!(grid as MyCubeGrid).Editable ||
+					grid.BigOwners.FirstOrDefault() != MyAPIGateway.Session.Player.IdentityId ||
 					DSession.ClientSettings.HiddenGrids.Contains(grid.CustomName))
 						continue;
 
@@ -444,14 +451,11 @@ namespace Dematerializer
 			}
 		}
 
-		private static void Blacklist_clicked(IMyTerminalBlock block)
+		private static void AddToBlacklistClicked(IMyTerminalBlock block)
 		{
 			DematerializerBlock db = GetBlock(block);
 			if (db != null && DSession.ClientSettings != null && DSession.ClientSettings.BlacklistedItems != null && AddToBlacklist != null)
 			{
-				if (!DSession.ClientSettings.BlacklistedItems.Contains(AddToBlacklist))
-					DSession.ClientSettings.BlacklistedItems.Add(AddToBlacklist);
-
 				if (!db.Blacklist.Contains(AddToBlacklist))
 					db.Blacklist.Add(AddToBlacklist);
 
@@ -461,14 +465,11 @@ namespace Dematerializer
 			}
 		}
 
-		private static void Whitelist_clicked(IMyTerminalBlock block)
+		private static void RemoveFromBlacklistClicked(IMyTerminalBlock block)
 		{
 			DematerializerBlock db = GetBlock(block);
 			if (db != null && DSession.ClientSettings != null && DSession.ClientSettings.BlacklistedItems.Count > 0 && RemoveFromBlacklist != null)
 			{
-				if (DSession.ClientSettings.BlacklistedItems.Contains(RemoveFromBlacklist))
-					DSession.ClientSettings.BlacklistedItems.Remove(RemoveFromBlacklist);
-
 				if (db.Blacklist.Contains(RemoveFromBlacklist))
 					db.Blacklist.Remove(RemoveFromBlacklist);
 
